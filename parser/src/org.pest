@@ -1,0 +1,9 @@
+sp = _{ " " | "\t" | "\r" }
+property_start = { ":PROPERTIES:" }
+property_end = { ":END:" }
+
+header_symbol = { "*"+ }
+header_title = { ANY+ }
+header = { header_symbol ~ sp* ~ header_title }
+
+properties = { property_start ~ ANY* ~ property_end }
