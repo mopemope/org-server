@@ -1,9 +1,54 @@
-sp = _{ " " | "\t" | "\r" }
-property_start = { ":PROPERTIES:" }
-property_end = { ":END:" }
+sp = _{ " " | "\t" }
+newline = _{ "\r\n" | "\r" | "\n" }
 
-header_symbol = { "*"+ }
-header_title = { ANY+ }
-header = { header_symbol ~ sp* ~ header_title }
+active_quoted = { "<" ~ active_quoted_inner* ~ ">" }
+active_quoted_inner = _{
+    literal_active_quoted
+}
+literal_active_quoted = ${
+    (
+        !("<" | ">") ~ ANY
+      | sp
+    )+
+}
 
-properties = { property_start ~ ANY* ~ property_end }
+drawer_sep  = _{":"}
+property_start = _{ drawer_sep ~ ^"PROPERTIES" ~ drawer_sep }
+property_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
+property_key = { (!drawer_sep ~ ANY)+ }
+property_k = _{ drawer_sep ~ property_key ~ drawer_sep}
+
+property_value = {
+    (
+        active_quoted
+      |!(sp | newline ) ~ ANY
+    )+
+}
+
+property = { property_k ~ sp* ~ property_value ~ sp* }
+properties = { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline  }
+
+keyword_start = _{ "#+" }
+block_start = { keyword_start ~ ^"BEGIN" }
+block_end = { keyword_start ~ ^"END" }
+
+keyword_key = { (!(keyword_start | drawer_sep) ~ ANY)+ }
+keyword_k = _{ keyword_start ~ keyword_key ~ drawer_sep }
+keyword_value = { (!(newline) ~ ANY)* }
+keyword = { keyword_k ~ sp* ~ keyword_value ~ sp* }
+
+tags = { ":" ~ tag_inner+ ~ ":" }
+tag_inner = _{ tag ~ (":" ~ tag)*  }
+tag = ${
+    (!(":") ~ ANY)+
+}
+
+headline_symbol = { "*"+ }
+headline_title = { (!(tags|newline) ~ ANY)+ }
+headline = { sp* ~ headline_symbol ~ sp* ~ headline_title ~ sp* ~ tags* }
+
+text_block = { (!headline ~ ANY)* }
+content = { text_block }
+section = { headline ~ newline+ ~ properties* ~ newline* ~ content ~ newline* }
+
+org = { properties* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }
