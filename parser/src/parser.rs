@@ -1,9 +1,60 @@
+use anyhow::Result;
+use pest::Parser;
 use pest_derive::Parser;
 use tracing::debug;
 
 #[derive(Parser)]
 #[grammar = "org.pest"]
 pub struct OrgParser;
+
+#[derive(Clone, Default)]
+pub struct Context {}
+
+#[derive(Clone, Debug, Default)]
+pub struct Org {
+    filename: Option<String>,
+    id: Option<String>,
+    title: Option<String>,
+}
+
+impl Org {
+    fn new() -> Self {
+        Org {
+            filename: None,
+            id: None,
+            title: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Property {
+    key: String,
+    value: String,
+}
+
+impl Property {
+    fn new(key: &str, value: &str) -> Self {
+        Property {
+            key: key.to_string(),
+            value: value.to_string(),
+        }
+    }
+}
+
+pub fn parse(content: &str) -> Result<Org> {
+    let mut org = Org::default();
+    let mut pairs = OrgParser::parse(Rule::org, content)?;
+    if let Some(pair) = pairs.next() {
+        for pair in pair.into_inner() {
+            match pair.as_rule() {
+                _ => {}
+            }
+        }
+    }
+
+    Ok(org)
+}
 
 #[cfg(test)]
 mod tests {
@@ -166,7 +217,7 @@ mod tests {
         }
     }
 
-    // keywords
+    // keyword tests
     #[test]
     fn parse_keyword() {
         init();
@@ -209,6 +260,7 @@ mod tests {
         }
     }
 
+    // tags tests
     #[test]
     fn parse_tags() {
         init();
@@ -237,6 +289,7 @@ mod tests {
         }
     }
 
+    // section tests
     #[test]
     fn parse_section() {
         init();
@@ -296,6 +349,7 @@ Content
         }
     }
 
+    // org tests
     #[test]
     fn parse_org() {
         init();
@@ -454,5 +508,39 @@ Content2
                 }
             }
         }
+    }
+
+    #[test]
+    fn parse_org_simple1() {
+        init();
+
+        let content = r#":PROPERTIES:
+:ID:   value
+:END:
+#+TITLE: title
+
+"#;
+        let pairs = OrgParser::parse(Rule::org, content).unwrap_or_else(|e| panic!("{}", e));
+
+        for pair in pairs {
+            for pair in pair.into_inner() {
+                println!("{:?}", pair);
+            }
+        }
+    }
+
+    #[test]
+    fn parse_orgs() {
+        init();
+
+        let content = r#":PROPERTIES:
+:ID:   value
+:END:
+#+TITLE: title
+
+"#;
+        let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
+
+        println!("{:?}", org);
     }
 }
