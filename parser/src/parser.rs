@@ -66,7 +66,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_active_quote() {
+    fn test_rule_active_quote() {
         init();
         let content = "<2023-12-11 Mon 07:09>";
         let pairs =
@@ -77,7 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_headline() {
+    fn test_rule_headline() {
         init();
         let pairs = OrgParser::parse(Rule::headline, "** 日 本 語  :abc:def:")
             .unwrap_or_else(|e| panic!("{}", e));
@@ -116,7 +116,7 @@ mod tests {
 
     // drawer tests
     #[test]
-    fn parse_property_start() {
+    fn test_rule_property_start() {
         init();
         let content = r#":PROPERTIES:"#;
         let pairs =
@@ -133,7 +133,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_property_end() {
+    fn test_rule_property_end() {
         init();
         let content = r#":END:"#;
         let pairs =
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_property() {
+    fn test_rule_property() {
         init();
 
         let content = r#":ID:   :value   "#;
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_property_timestamp() {
+    fn test_rule_property_timestamp() {
         init();
         let content = ":CREATED:    <2023-12-11 Mon 07:09>";
         let pairs = OrgParser::parse(Rule::property, content).unwrap_or_else(|e| panic!("{}", e));
@@ -191,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_properties() {
+    fn test_rule_properties() {
         init();
 
         let content = r#":PROPERTIES:
@@ -219,7 +219,7 @@ mod tests {
 
     // keyword tests
     #[test]
-    fn parse_keyword() {
+    fn test_rule_keyword() {
         init();
 
         let content = "#+TODO: TODO(t) | DONE(d)";
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_options_keyword() {
+    fn test_rule_options_keyword() {
         init();
 
         let content = "#+OPTIONS: ^:nil";
@@ -262,7 +262,7 @@ mod tests {
 
     // tags tests
     #[test]
-    fn parse_tags() {
+    fn test_rule_tags() {
         init();
 
         let content = ":abc:def:";
@@ -291,7 +291,7 @@ mod tests {
 
     // section tests
     #[test]
-    fn parse_section() {
+    fn test_rule_section() {
         init();
 
         let content = r#"* TEST
@@ -351,7 +351,7 @@ Content
 
     // org tests
     #[test]
-    fn parse_org() {
+    fn test_rule_org() {
         init();
 
         let content = r#":PROPERTIES:
@@ -511,7 +511,7 @@ Content2
     }
 
     #[test]
-    fn parse_org_simple1() {
+    fn test_rule_org_simple1() {
         init();
 
         let content = r#":PROPERTIES:
@@ -530,7 +530,7 @@ Content2
     }
 
     #[test]
-    fn parse_orgs() {
+    fn test_parse_org() {
         init();
 
         let content = r#":PROPERTIES:
