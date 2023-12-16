@@ -11,22 +11,45 @@ literal_active_quoted = ${
       | sp
     )+
 }
+inactive_quoted = { "[" ~ inactive_quoted_inner* ~ "]" }
+inactive_quoted_inner = _{
+    literal_inactive_quoted
+}
+literal_inactive_quoted = ${
+    (
+        !("[" | "]") ~ ANY
+      | sp
+    )+
+}
 
 drawer_sep  = _{":"}
 property_start = _{ drawer_sep ~ ^"PROPERTIES" ~ drawer_sep }
 property_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
 property_key = { (!drawer_sep ~ ANY)+ }
 property_k = _{ drawer_sep ~ property_key ~ drawer_sep}
-
 property_value = {
     (
         active_quoted
+      | inactive_quoted
       |!(sp | newline ) ~ ANY
     )+
 }
-
 property = { property_k ~ sp* ~ property_value ~ sp* }
-properties = { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline  }
+properties = { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline*  }
+
+drawer_start = _{ drawer_sep ~ ASCII_ALPHANUMERIC+ ~ drawer_sep }
+drawer_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
+drawer_content_char = _{
+    !(^":end:" | NEWLINE)
+    ~ ANY
+}
+drawer_content = { drawer_content_char+ }
+drawer = {
+    (drawer_start ~ sp* ~ newline+) ~
+    (drawer_content ~ newline+)* ~
+    (drawer_end ~ sp* ~ newline*)
+}
+// drawer = { drawer_start ~ sp* ~ newline+ ~ (drawer_content ~ newline)* ~ drawer_end ~ sp* ~ newline  }
 
 keyword_start = _{ "#+" }
 block_start = { keyword_start ~ ^"BEGIN" }

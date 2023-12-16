@@ -77,6 +77,17 @@ mod tests {
     }
 
     #[test]
+    fn test_rule_inactive_quote() {
+        init();
+        let content = "[2023-12-11 Mon 07:09]";
+        let pairs =
+            OrgParser::parse(Rule::inactive_quoted, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            println!("{:?}", pair);
+        }
+    }
+
+    #[test]
     fn test_rule_headline() {
         init();
         let pairs = OrgParser::parse(Rule::headline, "** 日 本 語  :abc:def:")
@@ -209,6 +220,73 @@ mod tests {
                         }
                         Rule::property_value => {
                             assert_eq!(":value", pair.as_str());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rule_drawer_start() {
+        init();
+        let content = ":LOGBOOK:";
+        let pairs =
+            OrgParser::parse(Rule::drawer_start, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+        let content = ":logbook:";
+        let pairs =
+            OrgParser::parse(Rule::drawer_start, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+    }
+
+    #[test]
+    fn test_rule_drawer_end() {
+        init();
+        let content = ":END:";
+        let pairs = OrgParser::parse(Rule::drawer_end, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+        let content = ":end:";
+        let pairs = OrgParser::parse(Rule::drawer_end, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+    }
+
+    #[test]
+    fn test_rule_drawer_content() {
+        init();
+        let content = "[aaa]bbb ccc";
+        let pairs =
+            OrgParser::parse(Rule::drawer_content, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+    }
+
+    #[test]
+    fn test_rule_drawer_all() {
+        init();
+
+        let content = r#":LOGBOOK:
+[1 abc def] :abc:
+:END:
+"#;
+        let pairs = OrgParser::parse(Rule::drawer, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            for pair in pair.into_inner() {
+                // debug!("** {:?}", pair);
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::drawer_content => {
+                            assert_eq!("[1 abc def] :abc:", pair.as_str());
                         }
                         _ => {}
                     }
