@@ -77,6 +77,17 @@ mod tests {
     }
 
     #[test]
+    fn test_rule_inactive_quote() {
+        init();
+        let content = "[2023-12-11 Mon 07:09]";
+        let pairs =
+            OrgParser::parse(Rule::inactive_quoted, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            println!("{:?}", pair);
+        }
+    }
+
+    #[test]
     fn test_rule_headline() {
         init();
         let pairs = OrgParser::parse(Rule::headline, "** 日 本 語  :abc:def:")
@@ -213,6 +224,53 @@ mod tests {
                         _ => {}
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rule_drawer_start() {
+        init();
+        let content = ":LOGBOOK:";
+        let pairs =
+            OrgParser::parse(Rule::drawer_start, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+        let content = ":logbook:";
+        let pairs =
+            OrgParser::parse(Rule::drawer_start, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            debug!("{:?}", pair);
+        }
+    }
+
+    #[test]
+    fn test_rule_logbook() {
+        init();
+
+        let content = r#":LOGBOOK:
+abc
+:END:"#;
+        //         let content = r#":LOGBOOK:
+        // CLOCK: [2023-11-30 Thu 08:44]--[2023-11-30 Thu 18:19] =>  9:35
+        // :END:
+        // "#;
+        let pairs = OrgParser::parse(Rule::drawer, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            for pair in pair.into_inner() {
+                println!("{:?}", pair);
+                // for pair in pair.into_inner() {
+                //     match pair.as_rule() {
+                //         Rule::property_key => {
+                //             assert_eq!("ID", pair.as_str());
+                //         }
+                //         Rule::property_value => {
+                //             assert_eq!(":value", pair.as_str());
+                //         }
+                //         _ => {}
+                //     }
+                // }
             }
         }
     }
