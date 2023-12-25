@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn test_rule_drawer_contents() {
         init();
-        let content = " <aaa> [bbbbb] ccc";
+        let content = " <2023-12-26 Tue 08:02> [2023-12-26 Tue 09:02] abc def";
         let pairs =
             OrgParser::parse(Rule::drawer_contents, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
@@ -271,15 +271,15 @@ mod tests {
                 match pair.as_rule() {
                     Rule::active_quoted => {
                         assert_eq!(0, i);
-                        assert_eq!("<aaa>", pair.as_str());
+                        assert_eq!("<2023-12-26 Tue 08:02>", pair.as_str());
                     }
                     Rule::inactive_quoted => {
                         assert_eq!(1, i);
-                        assert_eq!("[bbbbb]", pair.as_str());
+                        assert_eq!("[2023-12-26 Tue 09:02]", pair.as_str());
                     }
                     Rule::drawer_content => {
                         assert_eq!(2, i);
-                        assert_eq!("ccc", pair.as_str());
+                        assert_eq!("abc def", pair.as_str());
                     }
                     _ => {
                         debug!("*** {:?}", pair);
