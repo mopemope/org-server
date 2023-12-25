@@ -304,7 +304,10 @@ mod tests {
                 for pair in pair.into_inner() {
                     match pair.as_rule() {
                         Rule::drawer_content => {
-                            assert_eq!("[1 abc def] :abc:", pair.as_str());
+                            assert_eq!(":abc:", pair.as_str());
+                        }
+                        Rule::inactive_quoted => {
+                            assert_eq!("[1 abc def]", pair.as_str());
                         }
                         _ => {}
                     }
