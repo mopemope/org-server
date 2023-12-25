@@ -261,13 +261,31 @@ mod tests {
     }
 
     #[test]
-    fn test_rule_drawer_content() {
+    fn test_rule_drawer_contents() {
         init();
-        let content = "[aaa]bbb ccc";
+        let content = " <aaa> [bbbbb] ccc";
         let pairs =
-            OrgParser::parse(Rule::drawer_content, content).unwrap_or_else(|e| panic!("{}", e));
+            OrgParser::parse(Rule::drawer_contents, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
-            debug!("{:?}", pair);
+            for (i, pair) in pair.into_inner().enumerate() {
+                match pair.as_rule() {
+                    Rule::active_quoted => {
+                        assert_eq!(0, i);
+                        assert_eq!("<aaa>", pair.as_str());
+                    }
+                    Rule::inactive_quoted => {
+                        assert_eq!(1, i);
+                        assert_eq!("[bbbbb]", pair.as_str());
+                    }
+                    Rule::drawer_content => {
+                        assert_eq!(2, i);
+                        assert_eq!("ccc", pair.as_str());
+                    }
+                    _ => {
+                        debug!("*** {:?}", pair);
+                    }
+                }
+            }
         }
     }
 
