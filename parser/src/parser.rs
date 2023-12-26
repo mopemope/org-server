@@ -461,10 +461,11 @@ Content
 * TEST1
 :PROPERTIES:
 :ID:   value1
+:CREATED: <2023-12-26 Tue 08:02>
 :END:
 Content1
 
-* TEST2
+* test2
 :PROPERTIES:
 :ID:   value2
 :END:
@@ -486,9 +487,7 @@ Content2
                                     Rule::property_value => {
                                         assert_eq!("value", pair.as_str());
                                     }
-                                    _ => {
-                                        println!("!!! {:?}", pair);
-                                    }
+                                    _ => todo!(),
                                 }
                             }
                         }
@@ -503,13 +502,20 @@ Content2
                                     assert_eq!("title", pair.as_str());
                                 }
                                 _ => {
-                                    println!("!!! {:?}", pair);
+                                    todo!();
                                 }
                             }
                         }
                     }
                     Rule::section => match i {
                         2 => {
+                            // * TEST1
+                            // :PROPERTIES:
+                            // :ID:   value1
+                            // :CREATED: <2023-12-26 Tue 08:02>
+                            // :END:
+                            // Content1
+
                             for pair in pair.into_inner() {
                                 match pair.as_rule() {
                                     Rule::headline => {
@@ -522,7 +528,7 @@ Content2
                                                     assert_eq!("TEST1", pair.as_str());
                                                 }
                                                 _ => {
-                                                    println!("!!! {:?}", pair);
+                                                    todo!();
                                                 }
                                             }
                                         }
@@ -531,25 +537,38 @@ Content2
                                         assert_eq!("Content1\n\n", pair.as_str());
                                     }
                                     Rule::properties => {
-                                        for pair in pair.into_inner() {
+                                        for (i, pair) in pair.into_inner().enumerate() {
                                             for pair in pair.into_inner() {
-                                                match pair.as_rule() {
-                                                    Rule::property_key => {
-                                                        assert_eq!("ID", pair.as_str());
-                                                    }
-                                                    Rule::property_value => {
-                                                        assert_eq!("value1", pair.as_str());
-                                                    }
-                                                    _ => {
-                                                        println!("!!! {:?}", pair);
-                                                    }
+                                                match i {
+                                                    0 => match pair.as_rule() {
+                                                        Rule::property_key => {
+                                                            assert_eq!("ID", pair.as_str());
+                                                        }
+                                                        Rule::property_value => {
+                                                            assert_eq!("value1", pair.as_str());
+                                                        }
+                                                        _ => todo!(),
+                                                    },
+                                                    1 => match pair.as_rule() {
+                                                        Rule::property_key => {
+                                                            assert_eq!("CREATED", pair.as_str());
+                                                        }
+                                                        Rule::property_value => {
+                                                            assert_eq!(
+                                                                "<2023-12-26 Tue 08:02>",
+                                                                pair.as_str()
+                                                            );
+                                                        }
+                                                        _ => todo!(),
+                                                    },
+                                                    _ => todo!(),
                                                 }
                                             }
                                         }
                                     }
 
                                     _ => {
-                                        println!("!!! {:?}", pair);
+                                        todo!();
                                     }
                                 }
                             }
@@ -564,10 +583,10 @@ Content2
                                                     assert_eq!("*", pair.as_str());
                                                 }
                                                 Rule::headline_title => {
-                                                    assert_eq!("TEST2", pair.as_str());
+                                                    assert_eq!("test2", pair.as_str());
                                                 }
                                                 _ => {
-                                                    println!("!!! {:?}", pair);
+                                                    todo!();
                                                 }
                                             }
                                         }
@@ -576,33 +595,38 @@ Content2
                                         assert_eq!("Content2\n\n", pair.as_str());
                                     }
                                     Rule::properties => {
-                                        for pair in pair.into_inner() {
+                                        for (i, pair) in pair.into_inner().enumerate() {
                                             for pair in pair.into_inner() {
-                                                match pair.as_rule() {
-                                                    Rule::property_key => {
-                                                        assert_eq!("ID", pair.as_str());
-                                                    }
-                                                    Rule::property_value => {
-                                                        assert_eq!("value2", pair.as_str());
-                                                    }
-                                                    _ => {
-                                                        println!("!!! {:?}", pair);
-                                                    }
+                                                match i {
+                                                    0 => match pair.as_rule() {
+                                                        Rule::property_key => {
+                                                            assert_eq!("ID", pair.as_str());
+                                                        }
+                                                        Rule::property_value => {
+                                                            assert_eq!("value2", pair.as_str());
+                                                        }
+                                                        _ => {
+                                                            todo!();
+                                                        }
+                                                    },
+                                                    _ => todo!(),
                                                 }
                                             }
                                         }
                                     }
 
                                     _ => {
-                                        println!("!!! {:?}", pair);
+                                        todo!();
                                     }
                                 }
                             }
                         }
-                        _ => {}
+                        _ => {
+                            todo!();
+                        }
                     },
                     _ => {
-                        println!("{:?}", pair);
+                        todo!();
                     }
                 }
             }
