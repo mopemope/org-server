@@ -17,6 +17,7 @@ pub struct Org {
     id: Option<String>,
     title: Option<String>,
     properties: Vec<Property>,
+    keywords: Vec<Keyword>,
 }
 
 impl Org {
@@ -26,6 +27,22 @@ impl Org {
             id: None,
             title: None,
             properties: Vec::new(),
+            keywords: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Keyword {
+    key: String,
+    value: String,
+}
+
+impl Keyword {
+    fn new(key: &str, value: &str) -> Self {
+        Keyword {
+            key: key.to_string(),
+            value: value.to_string(),
         }
     }
 }
@@ -62,6 +79,25 @@ fn parse_property(pair: Pair<'_, Rule>) -> Property {
     prop
 }
 
+fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
+    let mut kw: Keyword = Default::default();
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::keyword_key => {
+                kw.key = pair.as_str().to_string();
+            }
+            Rule::keyword_value => {
+                kw.value = pair.as_str().to_string();
+            }
+            _ => {
+                debug!("## {:?}", pair);
+            }
+        }
+    }
+    kw
+}
+
 pub fn parse(content: &str) -> Result<Org> {
     let mut org = Org::default();
     let mut pairs = OrgParser::parse(Rule::org, content)?;
@@ -75,7 +111,11 @@ pub fn parse(content: &str) -> Result<Org> {
                     }
                 }
                 Rule::keyword => {
-                    debug!("{:?}", pair);
+                    let kw = parse_keyword(pair);
+                    if kw.key.to_lowercase() == "title" {
+                        org.title = Some(kw.value.to_string());
+                    }
+                    org.keywords.push(kw);
                 }
                 _ => {
                     // debug!("{:?}", pair);
@@ -691,6 +731,7 @@ Content2
 :ID:   value
 :END:
 #+TITLE: title
+#+STARTUP: overview
 
 "#;
         let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
@@ -698,5 +739,6 @@ Content2
         debug!("{:?}", org);
 
         assert_eq!(1, org.properties.len());
+        assert_eq!(2, org.keywords.len());
     }
 }
