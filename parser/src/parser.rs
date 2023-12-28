@@ -1,4 +1,5 @@
 use anyhow::Result;
+use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use tracing::debug;
@@ -15,6 +16,7 @@ pub struct Org {
     filename: Option<String>,
     id: Option<String>,
     title: Option<String>,
+    properties: Vec<Property>,
 }
 
 impl Org {
@@ -23,11 +25,12 @@ impl Org {
             filename: None,
             id: None,
             title: None,
+            properties: Vec::new(),
         }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Property {
     key: String,
     value: String,
@@ -42,13 +45,41 @@ impl Property {
     }
 }
 
+fn parse_property(pair: Pair<'_, Rule>) -> Property {
+    let mut prop: Property = Default::default();
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::property_key => {
+                prop.key = pair.as_str().to_string();
+            }
+            Rule::property_value => {
+                prop.value = pair.as_str().to_string();
+            }
+            _ => {}
+        }
+    }
+    prop
+}
+
 pub fn parse(content: &str) -> Result<Org> {
     let mut org = Org::default();
     let mut pairs = OrgParser::parse(Rule::org, content)?;
     if let Some(pair) = pairs.next() {
         for pair in pair.into_inner() {
             match pair.as_rule() {
-                _ => {}
+                Rule::properties => {
+                    for pair in pair.into_inner() {
+                        let prop = parse_property(pair);
+                        org.properties.push(prop);
+                    }
+                }
+                Rule::keyword => {
+                    debug!("{:?}", pair);
+                }
+                _ => {
+                    // debug!("{:?}", pair);
+                }
             }
         }
     }
@@ -664,6 +695,8 @@ Content2
 "#;
         let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
 
-        println!("{:?}", org);
+        debug!("{:?}", org);
+
+        assert_eq!(1, org.properties.len());
     }
 }
