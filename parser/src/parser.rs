@@ -38,31 +38,21 @@ impl Org {
 pub struct Keyword {
     key: String,
     value: String,
+    col: usize,
+    line: usize,
 }
 
-impl Keyword {
-    fn new(key: &str, value: &str) -> Self {
-        Keyword {
-            key: key.to_string(),
-            value: value.to_string(),
-        }
-    }
-}
+impl Keyword {}
 
 #[derive(Clone, Debug, Default)]
 pub struct Property {
     key: String,
     value: String,
+    col: usize,
+    line: usize,
 }
 
-impl Property {
-    fn new(key: &str, value: &str) -> Self {
-        Property {
-            key: key.to_string(),
-            value: value.to_string(),
-        }
-    }
-}
+impl Property {}
 
 #[derive(Clone, Debug, Default)]
 pub struct Section {
@@ -97,13 +87,16 @@ fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::keyword_key => {
+                let (line, col) = pair.line_col();
                 kw.key = pair.as_str().to_string();
+                kw.col = col;
+                kw.line = line;
             }
             Rule::keyword_value => {
                 kw.value = pair.as_str().to_string();
             }
             _ => {
-                debug!("## {:?}", pair);
+                todo!();
             }
         }
     }
