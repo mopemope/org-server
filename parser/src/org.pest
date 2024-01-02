@@ -80,6 +80,6 @@ headline = { sp* ~ headline_symbol ~ sp* ~ headline_title ~ sp* ~ tags* }
 
 text_block = { (!headline ~ ANY)* }
 content = { text_block }
-section = { headline ~ newline+ ~ properties* ~ newline* ~ content ~ newline* }
+section = { headline ~ newline+ ~ (properties ~ newline* | keyword ~ newline*)* ~ content ~ newline* }
 
 org = { properties* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }
