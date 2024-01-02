@@ -18,6 +18,7 @@ pub struct Org {
     title: Option<String>,
     properties: Vec<Property>,
     keywords: Vec<Keyword>,
+    sections: Vec<Section>,
 }
 
 impl Org {
@@ -28,6 +29,7 @@ impl Org {
             title: None,
             properties: Vec::new(),
             keywords: Vec::new(),
+            sections: Vec::new(),
         }
     }
 }
@@ -60,6 +62,16 @@ impl Property {
             value: value.to_string(),
         }
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Section {
+    title: String,
+    properties: Vec<Property>,
+    keywords: Vec<Keyword>,
+    contents: Option<String>,
+
+    sections: Vec<Section>,
 }
 
 fn parse_property(pair: Pair<'_, Rule>) -> Property {
@@ -98,6 +110,41 @@ fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
     kw
 }
 
+fn parse_section(pair: Pair<'_, Rule>) -> Section {
+    let mut section: Section = Default::default();
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::headline => {
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::headline_symbol => {}
+                        Rule::headline_title => {
+                            section.title = pair.as_str().to_string();
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Rule::properties => {
+                for pair in pair.into_inner() {
+                    let prop = parse_property(pair);
+                    section.properties.push(prop);
+                }
+            }
+            Rule::keyword => {
+                let kw = parse_keyword(pair);
+                section.keywords.push(kw);
+            }
+            Rule::content => {
+                section.contents = Some(pair.as_str().to_string());
+            }
+            _ => {}
+        }
+    }
+
+    return section;
+}
+
 pub fn parse(content: &str) -> Result<Org> {
     let mut org = Org::default();
     let mut pairs = OrgParser::parse(Rule::org, content)?;
@@ -117,8 +164,12 @@ pub fn parse(content: &str) -> Result<Org> {
                     }
                     org.keywords.push(kw);
                 }
+                Rule::section => {
+                    let sec = parse_section(pair);
+                    org.sections.push(sec);
+                }
                 _ => {
-                    // debug!("{:?}", pair);
+                    debug!("! {:?}", pair);
                 }
             }
         }
@@ -733,6 +784,14 @@ Content2
 #+TITLE: title
 #+STARTUP: overview
 
+* SECTION 1
+:PROPERTIES:
+:ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c
+:CREATED: <2024-01-02 Tue 12:34>
+:END:
+CONTENT1
+CONTENT1
+
 "#;
         let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
 
@@ -740,5 +799,7 @@ Content2
 
         assert_eq!(1, org.properties.len());
         assert_eq!(2, org.keywords.len());
+
+        assert_eq!(1, org.sections.len());
     }
 }
