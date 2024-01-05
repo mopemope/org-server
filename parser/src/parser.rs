@@ -42,8 +42,6 @@ pub struct Keyword {
     line: usize,
 }
 
-impl Keyword {}
-
 #[derive(Clone, Debug, Default)]
 pub struct Properties {
     col: usize,
@@ -59,14 +57,19 @@ pub struct Property {
     line: usize,
 }
 
-impl Property {}
+#[derive(Clone, Debug, Default)]
+pub struct Content {
+    col: usize,
+    line: usize,
+    contents: String,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct Section {
     title: String,
     properties: Vec<Properties>,
     keywords: Vec<Keyword>,
-    contents: Option<String>,
+    contents: Vec<Content>,
 
     sections: Vec<Section>,
 }
@@ -145,7 +148,16 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
                 section.keywords.push(kw);
             }
             Rule::content => {
-                section.contents = Some(pair.as_str().to_string());
+                let mut content: Content = Default::default();
+                let (line, col) = pair.line_col();
+                content.col = col;
+                content.line = line;
+                content.contents = pair.as_str().to_string();
+                section.contents.push(content);
+            }
+            Rule::section => {
+                let sec = parse_section(pair);
+                section.sections.push(sec);
             }
             _ => {}
         }
