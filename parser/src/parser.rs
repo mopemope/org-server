@@ -66,11 +66,12 @@ pub struct Content {
 
 #[derive(Clone, Debug, Default)]
 pub struct Section {
+    col: usize,
+    line: usize,
     title: String,
     properties: Vec<Properties>,
     keywords: Vec<Keyword>,
     contents: Vec<Content>,
-
     sections: Vec<Section>,
 }
 
@@ -126,6 +127,10 @@ fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
 
 fn parse_section(pair: Pair<'_, Rule>) -> Section {
     let mut section: Section = Default::default();
+    let (line, col) = pair.line_col();
+    section.col = col;
+    section.line = line;
+
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::headline => {
