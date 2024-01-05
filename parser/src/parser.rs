@@ -16,7 +16,7 @@ pub struct Org {
     filename: Option<String>,
     id: Option<String>,
     title: Option<String>,
-    properties: Vec<Property>,
+    properties: Vec<Properties>,
     keywords: Vec<Keyword>,
     sections: Vec<Section>,
 }
@@ -45,6 +45,13 @@ pub struct Keyword {
 impl Keyword {}
 
 #[derive(Clone, Debug, Default)]
+pub struct Properties {
+    col: usize,
+    line: usize,
+    children: Vec<Property>,
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct Property {
     key: String,
     value: String,
@@ -57,28 +64,36 @@ impl Property {}
 #[derive(Clone, Debug, Default)]
 pub struct Section {
     title: String,
-    properties: Vec<Property>,
+    properties: Vec<Properties>,
     keywords: Vec<Keyword>,
     contents: Option<String>,
 
     sections: Vec<Section>,
 }
 
-fn parse_property(pair: Pair<'_, Rule>) -> Property {
-    let mut prop: Property = Default::default();
+fn parse_properties(pair: Pair<'_, Rule>) -> Properties {
+    let mut properties: Properties = Default::default();
+    let (line, col) = pair.line_col();
+    properties.line = line;
+    properties.col = col;
 
     for pair in pair.into_inner() {
-        match pair.as_rule() {
-            Rule::property_key => {
-                prop.key = pair.as_str().to_string();
+        let mut prop: Property = Default::default();
+
+        for pair in pair.into_inner() {
+            match pair.as_rule() {
+                Rule::property_key => {
+                    prop.key = pair.as_str().to_string();
+                }
+                Rule::property_value => {
+                    prop.value = pair.as_str().to_string();
+                }
+                _ => {}
             }
-            Rule::property_value => {
-                prop.value = pair.as_str().to_string();
-            }
-            _ => {}
         }
+        properties.children.push(prop);
     }
-    prop
+    properties
 }
 
 fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
@@ -119,10 +134,8 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
                 }
             }
             Rule::properties => {
-                for pair in pair.into_inner() {
-                    let prop = parse_property(pair);
-                    section.properties.push(prop);
-                }
+                let prop = parse_properties(pair);
+                section.properties.push(prop);
             }
             Rule::keyword => {
                 let kw = parse_keyword(pair);
@@ -145,10 +158,8 @@ pub fn parse(content: &str) -> Result<Org> {
         for pair in pair.into_inner() {
             match pair.as_rule() {
                 Rule::properties => {
-                    for pair in pair.into_inner() {
-                        let prop = parse_property(pair);
-                        org.properties.push(prop);
-                    }
+                    let prop = parse_properties(pair);
+                    org.properties.push(prop);
                 }
                 Rule::keyword => {
                     let kw = parse_keyword(pair);
