@@ -83,7 +83,10 @@ fn parse_properties(pair: Pair<'_, Rule>) -> Properties {
         for pair in pair.into_inner() {
             match pair.as_rule() {
                 Rule::property_key => {
+                    let (line, col) = pair.line_col();
                     prop.key = pair.as_str().to_string();
+                    prop.line = line;
+                    prop.col = col;
                 }
                 Rule::property_value => {
                     prop.value = pair.as_str().to_string();
