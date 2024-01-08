@@ -31,3 +31,10 @@ futures = "0.3"
 xid = "1"
 parking_lot = "0.12"
 uuid = { version = "1", features = ["v4", "fast-rng", "macro-diagnostics"] }
+
+[profile.dev]
+# https://jakedeichert.com/blog/reducing-rust-incremental-compilation-times-on-macos-by-70-percent/
+split-debuginfo = "unpacked"
+lto = false
+incremental = true
+opt-level = 0
