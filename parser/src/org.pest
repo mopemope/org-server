@@ -37,7 +37,8 @@ property_value = {
 property = { property_k ~ sp* ~ property_value ~ sp* }
 properties = { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline*  }
 
-drawer_start = _{ drawer_sep ~ ASCII_ALPHANUMERIC+ ~ drawer_sep }
+drawer_name = { ASCII_ALPHANUMERIC+ }
+drawer_start = _{ drawer_sep ~ drawer_name ~ drawer_sep }
 drawer_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
 drawer_content = {
     (
@@ -80,6 +81,6 @@ headline = { sp* ~ headline_symbol ~ sp* ~ headline_title ~ sp* ~ tags* }
 
 text_block = { (!headline ~ ANY)* }
 content = { text_block }
-section = { headline ~ newline+ ~ (properties ~ newline* | keyword ~ newline*)* ~ content ~ newline* }
+section = { headline ~ newline+ ~ (properties ~ newline* | drawer ~ newline* | keyword ~ newline*)* ~ content ~ newline* }
 
-org = { properties* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }
+org = { properties* ~ newline* ~ drawer* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }

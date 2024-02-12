@@ -1,12 +1,10 @@
 use anyhow::Context as _;
-use anyhow::{ensure, Result};
+use anyhow::{Result};
 use axum::{
-    http::StatusCode,
-    routing::{get, post},
-    Json, Router,
+    routing::{get}, Router,
 };
 use clap::Parser;
-use serde::{Deserialize, Serialize};
+
 use std::path::PathBuf;
 use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

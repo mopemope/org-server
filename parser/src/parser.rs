@@ -16,6 +16,7 @@ pub struct Org {
     filename: Option<String>,
     id: Option<String>,
     title: Option<String>,
+    drawers: Vec<Drawer>,
     properties: Vec<Properties>,
     keywords: Vec<Keyword>,
     sections: Vec<Section>,
@@ -27,6 +28,7 @@ impl Org {
             filename: None,
             id: None,
             title: None,
+            drawers: Vec::new(),
             properties: Vec::new(),
             keywords: Vec::new(),
             sections: Vec::new(),
@@ -58,6 +60,14 @@ pub struct Property {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct Drawer {
+    name: String,
+    col: usize,
+    line: usize,
+    children: Vec<Content>,
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct Content {
     col: usize,
     line: usize,
@@ -69,6 +79,7 @@ pub struct Section {
     col: usize,
     line: usize,
     title: String,
+    drawers: Vec<Drawer>,
     properties: Vec<Properties>,
     keywords: Vec<Keyword>,
     contents: Vec<Content>,
@@ -101,6 +112,38 @@ fn parse_properties(pair: Pair<'_, Rule>) -> Properties {
         properties.children.push(prop);
     }
     properties
+}
+
+fn parse_drawer(pair: Pair<'_, Rule>) -> Drawer {
+    let mut drawer: Drawer = Default::default();
+    let (line, col) = pair.line_col();
+    drawer.line = line;
+    drawer.col = col;
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::drawer_name => {
+                drawer.name = pair.as_str().to_string();
+            }
+            Rule::drawer_contents => {
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::drawer_content => {
+                            let mut content: Content = Default::default();
+                            let (line, col) = pair.line_col();
+                            content.line = line;
+                            content.col = col;
+                            content.contents = pair.as_str().to_string();
+                            drawer.children.push(content);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    drawer
 }
 
 fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
@@ -148,6 +191,10 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
                 let prop = parse_properties(pair);
                 section.properties.push(prop);
             }
+            Rule::drawer => {
+                let drawer = parse_drawer(pair);
+                section.drawers.push(drawer);
+            }
             Rule::keyword => {
                 let kw = parse_keyword(pair);
                 section.keywords.push(kw);
@@ -168,7 +215,7 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
         }
     }
 
-    return section;
+    section
 }
 
 pub fn parse(content: &str) -> Result<Org> {
@@ -180,6 +227,10 @@ pub fn parse(content: &str) -> Result<Org> {
                 Rule::properties => {
                     let prop = parse_properties(pair);
                     org.properties.push(prop);
+                }
+                Rule::drawer => {
+                    let drawer = parse_drawer(pair);
+                    org.drawers.push(drawer);
                 }
                 Rule::keyword => {
                     let kw = parse_keyword(pair);
@@ -380,8 +431,18 @@ mod tests {
         let content = ":LOGBOOK:";
         let pairs =
             OrgParser::parse(Rule::drawer_start, content).unwrap_or_else(|e| panic!("{}", e));
+        debug!("{:?}", pairs.len());
+        assert!(pairs.len() > 0);
         for pair in pairs {
-            debug!("{:?}", pair);
+            match pair.as_rule() {
+                Rule::drawer_start => {
+                    let name = pair.as_str();
+                    debug!("{:?}", name);
+                }
+                _ => {
+                    debug!("{:?}", pair.as_rule());
+                }
+            }
         }
         let content = ":logbook:";
         let pairs =
@@ -445,18 +506,28 @@ mod tests {
 "#;
         let pairs = OrgParser::parse(Rule::drawer, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
-            for pair in pair.into_inner() {
+            let pairs = pair.into_inner();
+            assert!(pairs.len() > 0);
+            for pair in pairs {
                 // debug!("** {:?}", pair);
-                for pair in pair.into_inner() {
-                    match pair.as_rule() {
-                        Rule::drawer_content => {
-                            assert_eq!(":abc:", pair.as_str());
-                        }
-                        Rule::inactive_quoted => {
-                            assert_eq!("[1 abc def]", pair.as_str());
-                        }
-                        _ => {}
+                match pair.as_rule() {
+                    Rule::drawer_name => {
+                        assert_eq!("LOGBOOK", pair.as_str());
                     }
+                    Rule::drawer_contents => {
+                        for pair in pair.into_inner() {
+                            match pair.as_rule() {
+                                Rule::drawer_content => {
+                                    assert_eq!(":abc:", pair.as_str());
+                                }
+                                Rule::inactive_quoted => {
+                                    assert_eq!("[1 abc def]", pair.as_str());
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -814,6 +885,9 @@ Content2
 :ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c
 :CREATED: <2024-01-02 Tue 12:34>
 :END:
+:LOGBOOK:
+CLOCK:
+:END:
 #+KEYWORD2: title2
 CONTENT1
 CONTENT1
@@ -821,11 +895,14 @@ CONTENT1
 "#;
         let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
 
-        debug!("{:?}", org);
+        // debug!("{:?}", org);
 
         assert_eq!(1, org.properties.len());
         assert_eq!(2, org.keywords.len());
-
         assert_eq!(1, org.sections.len());
+
+        let sec = org.sections.first().unwrap();
+
+        assert_eq!(1, sec.drawers.len());
     }
 }
