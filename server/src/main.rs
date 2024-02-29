@@ -1,8 +1,6 @@
 use anyhow::Context as _;
-use anyhow::{Result};
-use axum::{
-    routing::{get}, Router,
-};
+use anyhow::Result;
+use axum::{routing::get, Router};
 use clap::Parser;
 
 use std::path::PathBuf;
