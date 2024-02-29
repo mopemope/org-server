@@ -885,7 +885,7 @@ Content2
 :CREATED: <2024-01-02 Tue 12:34>
 :END:
 :LOGBOOK:
-CLOCK:
+CLOCK: [2024-02-27 Tue 09:56]--[2024-02-27 Tue 17:56] =>  8:00
 :END:
 #+KEYWORD2: title2
 CONTENT1
@@ -894,7 +894,7 @@ CONTENT1
 "#;
         let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
 
-        // debug!("{:?}", org);
+        debug!("{:?}", org);
 
         assert_eq!(1, org.properties.len());
         assert_eq!(2, org.keywords.len());
