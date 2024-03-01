@@ -227,8 +227,13 @@ pub fn parse(content: &str) -> Result<Org> {
         for pair in pair.into_inner() {
             match pair.as_rule() {
                 Rule::properties => {
-                    let prop = parse_properties(pair);
-                    org.properties.push(prop);
+                    let props = parse_properties(pair);
+                    for prop in &props.children {
+                        if prop.key.to_lowercase() == "id" {
+                            org.id = Some(prop.value.clone());
+                        }
+                    }
+                    org.properties.push(props);
                 }
                 Rule::drawer => {
                     let drawer = parse_drawer(pair);
@@ -257,7 +262,8 @@ pub fn parse(content: &str) -> Result<Org> {
 
 pub fn parse_file(path: &Path) -> Result<Org> {
     let content = fs::read_to_string(path)?;
-    let org = parse(content.as_str())?;
+    let mut org = parse(content.as_str())?;
+    org.filename = Some(path.display().to_string());
     Ok(org)
 }
 
@@ -265,6 +271,7 @@ pub fn parse_file(path: &Path) -> Result<Org> {
 mod tests {
     use super::*;
     use pest::Parser;
+    use std::path::PathBuf;
 
     fn init() {
         let _ = tracing_subscriber::fmt::try_init();
@@ -911,5 +918,19 @@ CONTENT1
         let sec = org.sections.first().unwrap();
 
         assert_eq!(1, sec.drawers.len());
+    }
+
+    #[test]
+    fn test_parse_file() -> Result<()> {
+        init();
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("tests/resources/test-1.org");
+
+        let org = parse_file(&d)?;
+
+        let sec = &org.sections[1];
+        // debug!("{:?}", org);
+        debug!("{:?}", &sec.contents);
+        Ok(())
     }
 }
