@@ -2,6 +2,8 @@ use anyhow::Result;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
+use std::fs;
+use std::path::Path;
 use tracing::debug;
 
 #[derive(Parser)]
@@ -250,6 +252,12 @@ pub fn parse(content: &str) -> Result<Org> {
         }
     }
 
+    Ok(org)
+}
+
+pub fn parse_file(path: &Path) -> Result<Org> {
+    let content = fs::read_to_string(path)?;
+    let org = parse(content.as_str())?;
     Ok(org)
 }
 
