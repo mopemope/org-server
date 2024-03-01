@@ -2,6 +2,7 @@ use anyhow::Result;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tracing::debug;
@@ -13,7 +14,13 @@ pub struct OrgParser;
 #[derive(Clone, Default)]
 pub struct Context {}
 
-#[derive(Clone, Debug, Default)]
+impl Context {
+    fn new() -> Self {
+        Context {}
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Org {
     filename: Option<String>,
     id: Option<String>,
@@ -38,7 +45,7 @@ impl Org {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Keyword {
     key: String,
     value: String,
@@ -46,14 +53,14 @@ pub struct Keyword {
     line: usize,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Properties {
     col: usize,
     line: usize,
     children: Vec<Property>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Property {
     key: String,
     value: String,
@@ -61,7 +68,7 @@ pub struct Property {
     line: usize,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Drawer {
     name: String,
     col: usize,
@@ -69,14 +76,14 @@ pub struct Drawer {
     children: Vec<Content>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Content {
     col: usize,
     line: usize,
     contents: String,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Section {
     col: usize,
     line: usize,
@@ -88,7 +95,7 @@ pub struct Section {
     sections: Vec<Section>,
 }
 
-fn parse_properties(pair: Pair<'_, Rule>) -> Properties {
+fn parse_properties(ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
     let mut properties: Properties = Default::default();
     let (line, col) = pair.line_col();
     properties.line = line;
@@ -116,7 +123,7 @@ fn parse_properties(pair: Pair<'_, Rule>) -> Properties {
     properties
 }
 
-fn parse_drawer(pair: Pair<'_, Rule>) -> Drawer {
+fn parse_drawer(ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
     let mut drawer: Drawer = Default::default();
     let (line, col) = pair.line_col();
     drawer.line = line;
@@ -148,7 +155,7 @@ fn parse_drawer(pair: Pair<'_, Rule>) -> Drawer {
     drawer
 }
 
-fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
+fn parse_keyword(ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
     let mut kw: Keyword = Default::default();
 
     for pair in pair.into_inner() {
@@ -170,7 +177,7 @@ fn parse_keyword(pair: Pair<'_, Rule>) -> Keyword {
     kw
 }
 
-fn parse_section(pair: Pair<'_, Rule>) -> Section {
+fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     let mut section: Section = Default::default();
     let (line, col) = pair.line_col();
     section.col = col;
@@ -190,15 +197,15 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
                 }
             }
             Rule::properties => {
-                let prop = parse_properties(pair);
+                let prop = parse_properties(ctx, pair);
                 section.properties.push(prop);
             }
             Rule::drawer => {
-                let drawer = parse_drawer(pair);
+                let drawer = parse_drawer(ctx, pair);
                 section.drawers.push(drawer);
             }
             Rule::keyword => {
-                let kw = parse_keyword(pair);
+                let kw = parse_keyword(ctx, pair);
                 section.keywords.push(kw);
             }
             Rule::content => {
@@ -210,7 +217,7 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
                 section.contents.push(content);
             }
             Rule::section => {
-                let sec = parse_section(pair);
+                let sec = parse_section(ctx, pair);
                 section.sections.push(sec);
             }
             _ => {}
@@ -220,14 +227,14 @@ fn parse_section(pair: Pair<'_, Rule>) -> Section {
     section
 }
 
-pub fn parse(content: &str) -> Result<Org> {
+pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
     let mut org = Org::default();
     let mut pairs = OrgParser::parse(Rule::org, content)?;
     if let Some(pair) = pairs.next() {
         for pair in pair.into_inner() {
             match pair.as_rule() {
                 Rule::properties => {
-                    let props = parse_properties(pair);
+                    let props = parse_properties(ctx, pair);
                     for prop in &props.children {
                         if prop.key.to_lowercase() == "id" {
                             org.id = Some(prop.value.clone());
@@ -236,18 +243,18 @@ pub fn parse(content: &str) -> Result<Org> {
                     org.properties.push(props);
                 }
                 Rule::drawer => {
-                    let drawer = parse_drawer(pair);
+                    let drawer = parse_drawer(ctx, pair);
                     org.drawers.push(drawer);
                 }
                 Rule::keyword => {
-                    let kw = parse_keyword(pair);
+                    let kw = parse_keyword(ctx, pair);
                     if kw.key.to_lowercase() == "title" {
                         org.title = Some(kw.value.to_string());
                     }
                     org.keywords.push(kw);
                 }
                 Rule::section => {
-                    let sec = parse_section(pair);
+                    let sec = parse_section(ctx, pair);
                     org.sections.push(sec);
                 }
                 _ => {
@@ -260,9 +267,9 @@ pub fn parse(content: &str) -> Result<Org> {
     Ok(org)
 }
 
-pub fn parse_file(path: &Path) -> Result<Org> {
+pub fn parse_file(ctx: &mut Context, path: &Path) -> Result<Org> {
     let content = fs::read_to_string(path)?;
-    let mut org = parse(content.as_str())?;
+    let mut org = parse(ctx, content.as_str())?;
     org.filename = Some(path.display().to_string());
     Ok(org)
 }
@@ -907,7 +914,9 @@ CONTENT1
 CONTENT1
 
 "#;
-        let org = parse(content).unwrap_or_else(|e| panic!("{}", e));
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
 
         debug!("{:?}", org);
 
@@ -926,7 +935,8 @@ CONTENT1
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("tests/resources/test-1.org");
 
-        let org = parse_file(&d)?;
+        let mut ctx = Context::new();
+        let org = parse_file(&mut ctx, &d)?;
 
         let sec = &org.sections[1];
         // debug!("{:?}", org);
