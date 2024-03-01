@@ -940,7 +940,11 @@ CONTENT1
 
         let sec = &org.sections[1];
         // debug!("{:?}", org);
-        debug!("{:?}", &sec.contents);
+        // debug!("{:?}", &sec.contents);
+
+        let result = serde_json::to_string(&org)?;
+        debug!("{:?}", result);
+
         Ok(())
     }
 }
