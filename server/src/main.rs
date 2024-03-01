@@ -1,13 +1,12 @@
-use anyhow::Context as _;
+
 use anyhow::Result;
 use axum::{routing::get, Router};
 use clap::Parser;
-
 use std::path::PathBuf;
 use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-pub const APP_NAME: &str = "org-server";
+mod utils;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -27,7 +26,7 @@ async fn main() -> Result<()> {
     let config_path = if let Some(path) = app.config.as_deref() {
         PathBuf::from(path)
     } else {
-        get_config_file("org-server.toml")?
+        utils::get_config_file("org-server.toml")?
     };
 
     let port = if let Some(port) = app.port {
@@ -59,11 +58,6 @@ fn init_tracing() {
         .init();
 }
 
-fn get_config_file(name: &str) -> Result<PathBuf> {
-    let xdg_dir =
-        xdg::BaseDirectories::with_prefix(APP_NAME).context("failed get xdg directory")?;
-    xdg_dir.place_config_file(name).context("failed get path")
-}
 
 async fn run_server(port: u32) -> Result<()> {
     // build our application with a route

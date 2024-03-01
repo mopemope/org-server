@@ -95,7 +95,7 @@ pub struct Section {
     sections: Vec<Section>,
 }
 
-fn parse_properties(ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
+fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
     let mut properties: Properties = Default::default();
     let (line, col) = pair.line_col();
     properties.line = line;
@@ -123,7 +123,7 @@ fn parse_properties(ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
     properties
 }
 
-fn parse_drawer(ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
+fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
     let mut drawer: Drawer = Default::default();
     let (line, col) = pair.line_col();
     drawer.line = line;
@@ -155,7 +155,7 @@ fn parse_drawer(ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
     drawer
 }
 
-fn parse_keyword(ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
+fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
     let mut kw: Keyword = Default::default();
 
     for pair in pair.into_inner() {
@@ -938,7 +938,7 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse_file(&mut ctx, &d)?;
 
-        let sec = &org.sections[1];
+        let _sec = &org.sections[1];
         // debug!("{:?}", org);
         // debug!("{:?}", &sec.contents);
 
