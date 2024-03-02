@@ -1,21 +1,21 @@
 sp = _{ " " | "\t" }
 newline = _{ "\r\n" | "\r" | "\n" }
 
-active_quoted = { "<" ~ active_quoted_inner* ~ ">" }
-active_quoted_inner = _{
-    literal_active_quoted
+active_time_quoted = { "<" ~ active_time_quoted_inner* ~ ">" }
+active_time_quoted_inner = _{
+    literal_active_time_quoted
 }
-literal_active_quoted = ${
+literal_active_time_quoted = ${
     (
         !("<" | ">") ~ ANY
       | sp
     )+
 }
-inactive_quoted = { "[" ~ inactive_quoted_inner* ~ "]" }
-inactive_quoted_inner = _{
-    literal_inactive_quoted
+inactive_time_quoted = { "[" ~ inactive_time_quoted_inner* ~ "]" }
+inactive_time_quoted_inner = _{
+    literal_inactive_time_quoted
 }
-literal_inactive_quoted = ${
+literal_inactive_time_quoted = ${
     (
         !("[" | "]") ~ ANY
       | sp
@@ -29,8 +29,8 @@ property_key = { (!drawer_sep ~ ANY)+ }
 property_k = _{ drawer_sep ~ property_key ~ drawer_sep}
 property_value = {
     (
-        active_quoted
-      | inactive_quoted
+        active_time_quoted
+      | inactive_time_quoted
       |!(sp | newline ) ~ ANY
     )+
 }
@@ -48,8 +48,8 @@ drawer_content = {
 }
 drawer_contents = ${
     (
-        sp* ~ active_quoted ~ sp*
-      | sp* ~ inactive_quoted ~ sp*
+        sp* ~ active_time_quoted ~ sp*
+      | sp* ~ inactive_time_quoted ~ sp*
       | drawer_content
     )+
 }

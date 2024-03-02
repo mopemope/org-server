@@ -285,22 +285,22 @@ mod tests {
     }
 
     #[test]
-    fn test_rule_active_quote() {
+    fn test_rule_active_time_quote() {
         init();
         let content = "<2023-12-11 Mon 07:09>";
         let pairs =
-            OrgParser::parse(Rule::active_quoted, content).unwrap_or_else(|e| panic!("{}", e));
+            OrgParser::parse(Rule::active_time_quoted, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             println!("{:?}", pair);
         }
     }
 
     #[test]
-    fn test_rule_inactive_quote() {
+    fn test_rule_inactive_time_quote() {
         init();
         let content = "[2023-12-11 Mon 07:09]";
-        let pairs =
-            OrgParser::parse(Rule::inactive_quoted, content).unwrap_or_else(|e| panic!("{}", e));
+        let pairs = OrgParser::parse(Rule::inactive_time_quoted, content)
+            .unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             println!("{:?}", pair);
         }
@@ -498,11 +498,11 @@ mod tests {
         for pair in pairs {
             for (i, pair) in pair.into_inner().enumerate() {
                 match pair.as_rule() {
-                    Rule::active_quoted => {
+                    Rule::active_time_quoted => {
                         assert_eq!(0, i);
                         assert_eq!("<2023-12-26 Tue 08:02>", pair.as_str());
                     }
-                    Rule::inactive_quoted => {
+                    Rule::inactive_time_quoted => {
                         assert_eq!(1, i);
                         assert_eq!("[2023-12-26 Tue 09:02]", pair.as_str());
                     }
@@ -542,7 +542,7 @@ mod tests {
                                 Rule::drawer_content => {
                                     assert_eq!(":abc:", pair.as_str());
                                 }
-                                Rule::inactive_quoted => {
+                                Rule::inactive_time_quoted => {
                                     assert_eq!("[1 abc def]", pair.as_str());
                                 }
                                 _ => {}
