@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use axum::{routing::get, Router};
 use clap::Parser;
@@ -57,7 +56,6 @@ fn init_tracing() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 }
-
 
 async fn run_server(port: u32) -> Result<()> {
     // build our application with a route

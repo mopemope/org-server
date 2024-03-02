@@ -22,6 +22,9 @@ literal_inactive_time_quoted = ${
     )+
 }
 
+scheduled = { "SCHEDULED:" ~ sp* ~ (active_time_quoted) }
+scheduling = { scheduled }
+
 drawer_sep  = _{":"}
 property_start = _{ drawer_sep ~ ^"PROPERTIES" ~ drawer_sep }
 property_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
@@ -81,6 +84,13 @@ headline = { sp* ~ headline_symbol ~ sp* ~ headline_title ~ sp* ~ tags* }
 
 text_block = { (!headline ~ ANY)* }
 content = { text_block }
-section = { headline ~ newline+ ~ (properties ~ newline* | drawer ~ newline* | keyword ~ newline*)* ~ content ~ newline* }
+section = { headline ~ newline+ ~
+    (
+        scheduling ~ newline*
+      | properties ~ newline*
+      | drawer ~ newline*
+      | keyword ~ newline*
+    )* ~ content ~ newline*
+}
 
 org = { properties* ~ newline* ~ drawer* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }

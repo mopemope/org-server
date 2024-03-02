@@ -93,6 +93,13 @@ pub struct Section {
     keywords: Vec<Keyword>,
     contents: Vec<Content>,
     sections: Vec<Section>,
+    scheduling: Vec<Scheduling>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum Scheduling {
+    Scheduled(String),
+    Deadline(String),
 }
 
 fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
@@ -208,6 +215,21 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 let kw = parse_keyword(ctx, pair);
                 section.keywords.push(kw);
             }
+            Rule::scheduling => {
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::scheduled => {
+                            if let Some(pair) = pair.into_inner().next() {
+                                if let Some(pair) = pair.into_inner().next() {
+                                    let sch = Scheduling::Scheduled(pair.as_str().to_string());
+                                    section.scheduling.push(sch);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
             Rule::content => {
                 let mut content: Content = Default::default();
                 let (line, col) = pair.line_col();
@@ -220,7 +242,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 let sec = parse_section(ctx, pair);
                 section.sections.push(sec);
             }
-            _ => {}
+            _ => {
+                debug!("FIXME {:?}", pair);
+            }
         }
     }
 
@@ -292,6 +316,20 @@ mod tests {
             OrgParser::parse(Rule::active_time_quoted, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             println!("{:?}", pair);
+        }
+    }
+
+    #[test]
+    fn test_rule_scheduled() {
+        init();
+        let content = "SCHEDULED: <2023-12-11 Mon 07:09>";
+        let pairs = OrgParser::parse(Rule::scheduled, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            assert_eq!(Rule::scheduled, pair.as_rule());
+            for pair in pair.into_inner() {
+                assert_eq!(Rule::active_time_quoted, pair.as_rule());
+                // println!("{:?}", pair);
+            }
         }
     }
 
@@ -901,6 +939,7 @@ Content2
 #+STARTUP: overview
 
 * SECTION 1
+SCHEDULED: <2024-03-01 Tue 12:34>
 #+KEYWORD1: title1
 :PROPERTIES:
 :ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c
