@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod config;
 mod utils;
 
 #[derive(Parser)]
@@ -12,9 +13,6 @@ mod utils;
 struct App {
     #[arg(short, long)]
     config: Option<String>,
-
-    #[arg(short, long)]
-    port: Option<u32>,
 }
 
 #[tokio::main]
@@ -28,11 +26,8 @@ async fn main() -> Result<()> {
         utils::get_config_file("org-server.toml")?
     };
 
-    let port = if let Some(port) = app.port {
-        port
-    } else {
-        3000
-    };
+    debug!("load config path: {:?}", config_path);
+    let config = config::parse_config(&config_path.to_string_lossy())?;
 
     /*
     ensure!(
@@ -42,8 +37,7 @@ async fn main() -> Result<()> {
     );
      */
 
-    debug!("load config path: {:?}", config_path);
-    run_server(port).await?;
+    run_server(config.server_port).await?;
     Ok(())
 }
 
