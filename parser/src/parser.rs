@@ -226,6 +226,14 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                                 }
                             }
                         }
+                        Rule::deadline => {
+                            if let Some(pair) = pair.into_inner().next() {
+                                if let Some(pair) = pair.into_inner().next() {
+                                    let sch = Scheduling::Deadline(pair.as_str().to_string());
+                                    section.scheduling.push(sch);
+                                }
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -940,6 +948,7 @@ Content2
 
 * SECTION 1
 SCHEDULED: <2024-03-01 Tue 12:34>
+DEADLINE: <2024-03-03 Tue 10:30>
 #+KEYWORD1: title1
 :PROPERTIES:
 :ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c

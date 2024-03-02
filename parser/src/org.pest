@@ -22,8 +22,9 @@ literal_inactive_time_quoted = ${
     )+
 }
 
-scheduled = { "SCHEDULED:" ~ sp* ~ (active_time_quoted) }
-scheduling = { scheduled }
+scheduled = { ^"SCHEDULED:" ~ sp* ~ (active_time_quoted) }
+deadline = { ^"DEADLINE:" ~ sp* ~ (active_time_quoted) }
+scheduling = { scheduled | deadline }
 
 drawer_sep  = _{":"}
 property_start = _{ drawer_sep ~ ^"PROPERTIES" ~ drawer_sep }
