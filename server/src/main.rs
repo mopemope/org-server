@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     let config = config::parse_config(&config_path.to_string_lossy())?;
 
     for path in config.org_path {
-        parse::parse_org(&path)?;
+        parse::parse_org_files(&path).await?;
     }
 
     /*

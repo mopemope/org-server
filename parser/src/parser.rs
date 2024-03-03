@@ -3,8 +3,7 @@ use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::Path;
+
 use tracing::debug;
 
 #[derive(Parser)]
@@ -299,18 +298,10 @@ pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
     Ok(org)
 }
 
-pub fn parse_file(ctx: &mut Context, path: &Path) -> Result<Org> {
-    let content = fs::read_to_string(path)?;
-    let mut org = parse(ctx, content.as_str())?;
-    org.filename = Some(path.display().to_string());
-    Ok(org)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use pest::Parser;
-    use std::path::PathBuf;
 
     fn init() {
         let _ = tracing_subscriber::fmt::try_init();
@@ -977,22 +968,22 @@ CONTENT1
         assert_eq!(1, sec.drawers.len());
     }
 
-    #[test]
-    fn test_parse_file() -> Result<()> {
-        init();
-        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("tests/resources/test-1.org");
+    // #[test]
+    // fn test_parse_file() -> Result<()> {
+    //     init();
+    //     let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    //     d.push("tests/resources/test-1.org");
 
-        let mut ctx = Context::new();
-        let org = parse_file(&mut ctx, &d)?;
+    //     let mut ctx = Context::new();
+    //     let org = parse_file(&mut ctx, &d)?;
 
-        let _sec = &org.sections[1];
-        // debug!("{:?}", org);
-        // debug!("{:?}", &sec.contents);
+    //     let _sec = &org.sections[1];
+    //     // debug!("{:?}", org);
+    //     // debug!("{:?}", &sec.contents);
 
-        let result = serde_json::to_string(&org)?;
-        debug!("{:?}", result);
+    //     let result = serde_json::to_string(&org)?;
+    //     debug!("{:?}", result);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
