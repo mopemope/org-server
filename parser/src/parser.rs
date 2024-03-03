@@ -12,10 +12,10 @@ use tracing::debug;
 pub struct OrgParser;
 
 #[derive(Clone, Default)]
-pub struct Context {}
+pub struct Context {} // TODO add attr
 
 impl Context {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Context {}
     }
 }
@@ -32,7 +32,7 @@ pub struct Org {
 }
 
 impl Org {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Org {
             filename: None,
             id: None,
