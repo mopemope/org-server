@@ -1,6 +1,6 @@
-use crate::{config::Config, parse::parse_org_file};
+use crate::{config::Config, notify, parse::parse_org_file};
 use anyhow::Result;
-use chrono::{Local};
+use chrono::Local;
 use org_parser::Remainder;
 use std::time::Duration;
 use tokio::{task, time};
@@ -50,13 +50,17 @@ pub async fn check_remainders(config: &Config) -> Result<()> {
             let mut i = 0;
             while i < remainders.len() {
                 if now > remainders[i].datetime {
-                    let _val = remainders.remove(i);
-                    // your code here
+                    let val = remainders.remove(i);
+                    if now > val.datetime {
+                        // notify
+                        let _ = notify::notify(&val.title, &val.title);
+                        debug!("notify : {:?}", val);
+                    }
                 } else {
                     i += 1;
                 }
             }
-            println!("checked");
+            debug!("checked remainders: {}", remainders.len());
         }
     });
     Ok(())

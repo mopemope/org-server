@@ -6,6 +6,7 @@ use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod notify;
 mod parse;
 mod remainders;
 mod utils;
