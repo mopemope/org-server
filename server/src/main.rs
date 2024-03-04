@@ -7,6 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
 mod parse;
+mod remainders;
 mod utils;
 
 #[derive(Parser)]
@@ -30,9 +31,7 @@ async fn main() -> Result<()> {
     debug!("load config path: {:?}", config_path);
     let config = config::parse_config(&config_path.to_string_lossy())?;
 
-    for path in config.org_path {
-        parse::parse_org_files(&path).await?;
-    }
+    remainders::check_remainders(&config).await?;
 
     /*
     ensure!(
