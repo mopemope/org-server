@@ -11,6 +11,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+chrono.workspace = true
 
 regex = "1.5"
 pest = "2"

@@ -1,9 +1,9 @@
+use crate::{remainder::get_remainders, Remainder};
 use anyhow::Result;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
-
 use tracing::debug;
 
 #[derive(Parser)]
@@ -21,13 +21,13 @@ impl Context {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Org {
-    filename: Option<String>,
-    id: Option<String>,
-    title: Option<String>,
-    drawers: Vec<Drawer>,
-    properties: Vec<Properties>,
-    keywords: Vec<Keyword>,
-    sections: Vec<Section>,
+    pub filename: Option<String>,
+    pub id: Option<String>,
+    pub title: Option<String>,
+    pub drawers: Vec<Drawer>,
+    pub properties: Vec<Properties>,
+    pub keywords: Vec<Keyword>,
+    pub sections: Vec<Section>,
 }
 
 impl Org {
@@ -42,57 +42,68 @@ impl Org {
             sections: Vec::new(),
         }
     }
+
+    pub fn get_remainders(&self) -> Vec<Remainder> {
+        let mut res = vec![];
+        for sec in &self.sections {
+            let mut remainders = get_remainders(sec);
+            if !remainders.is_empty() {
+                res.append(&mut remainders)
+            }
+        }
+        res
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Keyword {
-    key: String,
-    value: String,
-    col: usize,
-    line: usize,
+    pub key: String,
+    pub value: String,
+    pub col: usize,
+    pub line: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Properties {
-    col: usize,
-    line: usize,
-    children: Vec<Property>,
+    pub col: usize,
+    pub line: usize,
+    pub children: Vec<Property>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Property {
-    key: String,
-    value: String,
-    col: usize,
-    line: usize,
+    pub key: String,
+    pub value: String,
+    pub col: usize,
+    pub line: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Drawer {
-    name: String,
-    col: usize,
-    line: usize,
-    children: Vec<Content>,
+    pub name: String,
+    pub col: usize,
+    pub line: usize,
+    pub children: Vec<Content>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Content {
-    col: usize,
-    line: usize,
-    contents: String,
+    pub col: usize,
+    pub line: usize,
+    pub contents: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Section {
-    col: usize,
-    line: usize,
-    title: String,
-    drawers: Vec<Drawer>,
-    properties: Vec<Properties>,
-    keywords: Vec<Keyword>,
-    contents: Vec<Content>,
-    sections: Vec<Section>,
-    scheduling: Vec<Scheduling>,
+    pub col: usize,
+    pub line: usize,
+    pub title: String,
+    pub drawers: Vec<Drawer>,
+    pub properties: Vec<Properties>,
+    pub keywords: Vec<Keyword>,
+    pub contents: Vec<Content>,
+    pub sections: Vec<Section>,
+    pub scheduling: Vec<Scheduling>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -938,8 +949,8 @@ Content2
 #+STARTUP: overview
 
 * SECTION 1
-SCHEDULED: <2024-03-01 Tue 12:34>
-DEADLINE: <2024-03-03 Tue 10:30>
+SCHEDULED: <2024-12-03 Tue 12:34>
+DEADLINE: <2024-12-03 Tue 10:30>
 #+KEYWORD1: title1
 :PROPERTIES:
 :ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c
@@ -957,7 +968,7 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
 
-        debug!("{:?}", org);
+        // debug!("{:?}", org);
 
         assert_eq!(1, org.properties.len());
         assert_eq!(2, org.keywords.len());
@@ -966,6 +977,9 @@ CONTENT1
         let sec = org.sections.first().unwrap();
 
         assert_eq!(1, sec.drawers.len());
+
+        let rems = org.get_remainders();
+        assert_eq!(6, rems.len());
     }
 
     // #[test]
