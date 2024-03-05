@@ -1,6 +1,6 @@
 use crate::{config::Config, parse::parse_org_file};
 use anyhow::Result;
-use notify::event::{EventKind};
+use notify::event::EventKind;
 use notify::{RecommendedWatcher, Watcher};
 use org_parser::Org;
 use tokio::runtime::Builder;

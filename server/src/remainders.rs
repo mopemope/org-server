@@ -26,6 +26,7 @@ fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
     }
     Ok(())
 }
+
 pub fn scan(config: &Config, tx: mpsc::Sender<Org>) -> Result<()> {
     for p in &config.org_path {
         scan_remainders(p, tx.clone())?;
@@ -41,7 +42,7 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
         loop {
             tokio::select! {
                 _ = interval.tick() => {
-                    debug!("start check");
+                    // debug!("start check");
                     let now = Local::now().naive_local();
                     let mut i = 0;
                     while i < remainders.len() {
@@ -59,10 +60,15 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
                 }
                 data = rx.recv() => {
                     if let Some(org) = data {
-                        let mut res = org.get_remainders();
+                        let res = org.get_remainders();
                         if !res.is_empty() {
-                            debug!("append remainders: {:?}", res);
-                            remainders.append(&mut res);
+                            let now = Local::now().naive_local();
+                            for r in res {
+                                if now < r.datetime {
+                                    debug!("append remainder: {:?}", r);
+                                    remainders.push(r);
+                                }
+                            }
                         }
                     }
                 }
@@ -71,38 +77,3 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
     });
     Ok(())
 }
-
-// pub async fn check_remainders2(config: &Config) -> Result<()> {
-//     let mut remainders = vec![];
-//     for p in &config.org_path {
-//         let mut res = get_remainders(p).await?;
-//         remainders.append(&mut res);
-//     }
-
-//     debug!("remainders: {:?}", remainders);
-
-//     let _forever = task::spawn(async move {
-//         let mut interval = time::interval(Duration::from_secs(5));
-
-//         loop {
-//             interval.tick().await;
-
-//             let now = Local::now().naive_local();
-//             let mut i = 0;
-//             while i < remainders.len() {
-//                 if now > remainders[i].datetime {
-//                     let val = remainders.remove(i);
-//                     if now > val.datetime {
-//                         // notify
-//                         let _ = notification::notify(&val.title, &val.title);
-//                         debug!("notify : {:?}", val);
-//                     }
-//                 } else {
-//                     i += 1;
-//                 }
-//             }
-//             debug!("checked remainders: {}", remainders.len());
-//         }
-//     });
-//     Ok(())
-// }
