@@ -7,24 +7,21 @@ use tokio::{sync::mpsc, task, time};
 use tracing::{debug, error};
 use walkdir::WalkDir;
 
-fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
+async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
     for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path().to_owned();
         if let Some(ext) = path.extension() {
             if ext == "org" {
-                let tx = tx.clone();
-                let _ = task::spawn(async move {
-                    match parse_org_file(&path).await {
-                        Ok(org) => {
-                            if let Err(err) = tx.send(org).await {
-                                error!("SendError: {:?}", err);
-                            }
-                        }
-                        Err(err) => {
-                            error!("ParseError: {:?}", err);
+                match parse_org_file(&path).await {
+                    Ok(org) => {
+                        if let Err(err) = tx.send(org).await {
+                            error!("SendError: {:?}", err);
                         }
                     }
-                });
+                    Err(err) => {
+                        error!("ParseError: {:?}", err);
+                    }
+                }
             }
         }
     }
@@ -33,7 +30,13 @@ fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
 
 pub fn scan(config: &Config, tx: mpsc::Sender<Org>) -> Result<()> {
     for p in &config.org_path {
-        scan_remainders(p, tx.clone())?;
+        let p = p.clone();
+        let tx = tx.clone();
+        let _ = task::spawn(async move {
+            if let Err(err) = scan_remainders(&p, tx).await {
+                error!("ParseError {:?}", err);
+            }
+        });
     }
     Ok(())
 }
