@@ -203,16 +203,21 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::headline => {
-                for pair in pair.into_inner() {
-                    match pair.as_rule() {
-                        Rule::headline_symbol => {}
-                        Rule::headline_title => {
-                            section.title = pair.as_str().to_string();
+                let hl = pair.as_str();
+                if let Ok(parsed) = OrgParser::parse(Rule::headline, hl) {
+                    for pair in parsed {
+                        for pair in pair.into_inner() {
+                            match pair.as_rule() {
+                                Rule::headline_symbol => {}
+                                Rule::headline_title => {
+                                    section.title = pair.as_str().to_string();
+                                }
+                                Rule::tags => {
+                                    // TODO
+                                }
+                                _ => {}
+                            }
                         }
-                        Rule::tags => {
-                            // TODO
-                        }
-                        _ => {}
                     }
                 }
             }
