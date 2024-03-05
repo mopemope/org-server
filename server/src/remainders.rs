@@ -57,7 +57,7 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
                             let val = remainders.remove(i);
                             if now > val.datetime {
                                 // notify
-                                let _ = notification::notify(&val.title, &val.title);
+                                let _ = notification::notify("Emacs Org Remainder", &val.title);
                                 debug!("notify : {:?}", val);
                             }
                         } else {
