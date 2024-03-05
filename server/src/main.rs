@@ -2,14 +2,16 @@ use anyhow::Result;
 use axum::{routing::get, Router};
 use clap::Parser;
 use std::path::PathBuf;
+
 use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
-mod notify;
+mod notification;
 mod parse;
 mod remainders;
 mod utils;
+mod watcher;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -32,15 +34,13 @@ async fn main() -> Result<()> {
     debug!("load config path: {:?}", config_path);
     let config = config::parse_config(&config_path.to_string_lossy())?;
 
-    remainders::check_remainders(&config).await?;
+    let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
-    /*
-    ensure!(
-        config_path.exists(),
-        "fail load config. {:?} not exists",
-        config_path
-    );
-     */
+    watcher::watch_files(&config, tx.clone())?;
+
+    // start checker
+    remainders::start_check(rx).await?;
+    remainders::scan(&config, tx.clone())?;
 
     run_server(config.server_port).await?;
     Ok(())

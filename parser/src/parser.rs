@@ -296,7 +296,7 @@ pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
                     org.keywords.push(kw);
                 }
                 Rule::section => {
-                    let sec = parse_section(ctx, pair);
+                    let sec = parse_section(ctx, pair); // TODO parse src block
                     org.sections.push(sec);
                 }
                 _ => {
@@ -982,22 +982,24 @@ CONTENT1
         assert_eq!(6, rems.len());
     }
 
-    // #[test]
-    // fn test_parse_file() -> Result<()> {
-    //     init();
-    //     let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    //     d.push("tests/resources/test-1.org");
+    #[test]
+    fn test_parse_file() -> Result<()> {
+        init();
+        let mut d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("tests/resources/test-1.org");
 
-    //     let mut ctx = Context::new();
-    //     let org = parse_file(&mut ctx, &d)?;
+        let content = std::fs::read_to_string(&d)?;
+        let mut ctx = Context::new();
 
-    //     let _sec = &org.sections[1];
-    //     // debug!("{:?}", org);
-    //     // debug!("{:?}", &sec.contents);
+        let org = parse(&mut ctx, &content)?;
 
-    //     let result = serde_json::to_string(&org)?;
-    //     debug!("{:?}", result);
+        let _sec = &org.sections[1];
+        // debug!("{:?}", org);
+        // debug!("{:?}", &sec.contents);
 
-    //     Ok(())
-    // }
+        let result = serde_json::to_string(&org)?;
+        debug!("{:?}", result);
+
+        Ok(())
+    }
 }

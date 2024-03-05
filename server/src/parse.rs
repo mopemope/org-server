@@ -12,7 +12,9 @@ pub async fn parse_org_file(path: &Path) -> Result<org_parser::Org> {
 
     let content = std::str::from_utf8(&buf)?;
     let mut ctx = org_parser::Context::new();
-    let org = org_parser::parse(&mut ctx, content)?;
+    let mut org = org_parser::parse(&mut ctx, content)?;
+    let p = format!("{}", path.display());
+    org.filename = Some(p);
     Ok(org)
 }
 
