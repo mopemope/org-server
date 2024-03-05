@@ -80,8 +80,9 @@ tag = ${
 }
 
 headline_symbol = { "*"+ }
+todo_status = { ^"TODO" | ^"DOING" | ^"DONE" }
 headline_title = { (!(tags|newline) ~ ANY)+ }
-headline = { sp* ~ headline_symbol ~ sp* ~ headline_title ~ sp* ~ tags* }
+headline = { sp* ~ headline_symbol ~ sp* ~ todo_status* ~ sp* ~ headline_title ~ sp* ~ tags* }
 
 text_block = { (!headline ~ ANY)* }
 content = { text_block }

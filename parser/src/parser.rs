@@ -209,6 +209,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                         Rule::headline_title => {
                             section.title = pair.as_str().to_string();
                         }
+                        Rule::tags => {
+                            // TODO
+                        }
                         _ => {}
                     }
                 }
@@ -357,7 +360,7 @@ mod tests {
     #[test]
     fn test_rule_headline() {
         init();
-        let pairs = OrgParser::parse(Rule::headline, "** 日 本 語  :abc:def:")
+        let pairs = OrgParser::parse(Rule::headline, "** TODO 日 本 語  :abc:")
             .unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             for inner_pair in pair.into_inner() {
