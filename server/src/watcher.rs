@@ -83,9 +83,14 @@ impl OrgWatcher {
             }
             EventKind::Modify(_data) => {
                 for p in &event.paths {
-                    if let Ok(org) = parse_org_file(p).await {
-                        if let Err(err) = self.org_sender.send(org).await {
-                            error!("SendError: {:?}", err);
+                    match parse_org_file(p).await {
+                        Ok(org) => {
+                            if let Err(err) = self.org_sender.send(org).await {
+                                error!("SendError: {:?}", err);
+                            }
+                        }
+                        Err(err) => {
+                            error!("ParseError: {:?}", err);
                         }
                     }
                 }

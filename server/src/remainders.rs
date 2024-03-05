@@ -14,10 +14,14 @@ fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
             if ext == "org" {
                 let tx = tx.clone();
                 let _ = task::spawn(async move {
-                    if let Ok(org) = parse_org_file(&path).await {
-                        // debug!("org: {:?}", &org);
-                        if let Err(err) = tx.send(org).await {
-                            error!("SendError: {:?}", err);
+                    match parse_org_file(&path).await {
+                        Ok(org) => {
+                            if let Err(err) = tx.send(org).await {
+                                error!("SendError: {:?}", err);
+                            }
+                        }
+                        Err(err) => {
+                            error!("ParseError: {:?}", err);
                         }
                     }
                 });
