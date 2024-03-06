@@ -8,6 +8,7 @@ use tracing::{debug, error};
 use walkdir::WalkDir;
 
 async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
+    let mut n = 0;
     for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path().to_owned();
         if let Some(ext) = path.extension() {
@@ -16,6 +17,8 @@ async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
                     Ok(org) => {
                         if let Err(err) = tx.send(org).await {
                             error!("SendError: {:?}", err);
+                        } else {
+                            n += 1;
                         }
                     }
                     Err(err) => {
@@ -25,6 +28,7 @@ async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
             }
         }
     }
+    debug!("scan: {:?} {} org files", path, n);
     Ok(())
 }
 
