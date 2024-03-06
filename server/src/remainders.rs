@@ -2,12 +2,16 @@ use crate::{config::Config, notification, parse::parse_org_file};
 use anyhow::Result;
 use chrono::Local;
 use org_parser::{Org, Remainder};
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 use tokio::{sync::mpsc, task, time};
 use tracing::{debug, error};
 use walkdir::WalkDir;
 
 async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
+    let now = Instant::now();
     let mut n = 0;
     for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path().to_owned();
@@ -28,7 +32,7 @@ async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
             }
         }
     }
-    debug!("scan: {:?} {} org files", path, n);
+    debug!("scan: {:?} {} org files {:?}", path, n, now.elapsed());
     Ok(())
 }
 
