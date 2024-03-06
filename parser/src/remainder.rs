@@ -1,12 +1,26 @@
 use crate::parser::{Scheduling, Section};
 use chrono::prelude::*;
+use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct Remainder {
     pub title: String,
     pub datetime: NaiveDateTime,
     pub scheduling: Scheduling,
+}
+
+impl PartialEq for Remainder {
+    fn eq(&self, other: &Self) -> bool {
+        self.title == other.title && self.datetime == other.datetime
+    }
+}
+
+impl Hash for Remainder {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.title.hash(state);
+        self.datetime.hash(state);
+    }
 }
 
 pub fn get_remainders(sec: &Section) -> Vec<Remainder> {

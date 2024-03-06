@@ -2,7 +2,7 @@ use crate::{config::Config, notification, parse::parse_org_file};
 use anyhow::Result;
 use chrono::Local;
 use org_parser::{Org, Remainder};
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 use tokio::{sync::mpsc, task, time};
 use tracing::{debug, error};
 use walkdir::WalkDir;
@@ -44,26 +44,32 @@ pub fn scan(config: &Config, tx: mpsc::Sender<Org>) -> Result<()> {
 pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
     let _forever = task::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(5));
-        let mut remainders: Vec<Remainder> = vec![];
+        // let mut remainders: Vec<Remainder> = vec![];
+        let mut remainders: HashSet<Remainder> = HashSet::new();
 
         loop {
             tokio::select! {
                 _ = interval.tick() => {
                     // debug!("start check");
                     let now = Local::now().naive_local();
-                    let mut i = 0;
-                    while i < remainders.len() {
-                        if now > remainders[i].datetime {
-                            let val = remainders.remove(i);
-                            if now > val.datetime {
-                                // notify
-                                let _ = notification::notify("Emacs Org Remainder", &val.title);
-                                debug!("notify : {:?}", val);
-                            }
-                        } else {
-                            i += 1;
+                    let mut temp = vec![];
+                    for val in &remainders {
+                        if now > val.datetime {
+                            // notify
+                            let _ = notification::notify("Emacs Org Remainder", &val.title);
+                            debug!("notify : {:?}", val);
+                            temp.push(val.clone());  // remove entry
                         }
                     }
+
+                    for val in temp {
+                        remainders.remove(&val);
+                    }
+
+                    if !remainders.is_empty(){
+                        debug!("remainder size: {:?}", remainders.len());
+                    }
+
                 }
                 data = rx.recv() => {
                     if let Some(org) = data {
@@ -72,8 +78,10 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
                             let now = Local::now().naive_local();
                             for r in res {
                                 if now < r.datetime {
-                                    debug!("append remainder: {:?}", r);
-                                    remainders.push(r);
+                                    let dr = r.clone();
+                                    if remainders.insert(r) {
+                                        debug!("append remainder: {:?}", &dr);
+                                    }
                                 }
                             }
                         }

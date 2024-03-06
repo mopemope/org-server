@@ -4,6 +4,7 @@ use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use tracing::debug;
 
 #[derive(Parser)]
@@ -106,10 +107,35 @@ pub struct Section {
     pub scheduling: Vec<Scheduling>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq)]
 pub enum Scheduling {
     Scheduled(String),
     Deadline(String),
+}
+
+impl PartialEq for Scheduling {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Scheduling::Scheduled(a), Scheduling::Scheduled(b)) => a == b,
+            (Scheduling::Deadline(a), Scheduling::Deadline(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Hash for Scheduling {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Scheduling::Scheduled(data) => {
+                state.write(&[1]);
+                data.hash(state);
+            }
+            Scheduling::Deadline(data) => {
+                state.write(&[2]);
+                data.hash(state);
+            }
+        }
+    }
 }
 
 fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
