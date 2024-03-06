@@ -70,9 +70,9 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
                         remainders.remove(&val);
                     }
 
-                    if !remainders.is_empty(){
-                        debug!("remainder size: {:?}", remainders.len());
-                    }
+                    //if !remainders.is_empty(){
+                    // debug!("remainder size: {:?}", remainders.len());
+                    //}
 
                 }
                 data = rx.recv() => {
