@@ -43,21 +43,21 @@ fn create_remainder(title: &str, dt: NaiveDateTime, sch: &Scheduling) -> Vec<Rem
     let mut vec = vec![];
 
     let rem = Remainder {
-        title: title.to_string(),
+        title: format!("{} 30分前", title),
         datetime: dt - Duration::from_secs(60 * 30),
         scheduling: sch.clone(),
     };
     vec.push(rem);
 
     let rem = Remainder {
-        title: title.to_string(),
+        title: format!("{} 10分前", title),
         datetime: dt - Duration::from_secs(60 * 10),
         scheduling: sch.clone(),
     };
     vec.push(rem);
 
     let rem = Remainder {
-        title: title.to_string(),
+        title: format!("{} 1分前", title),
         datetime: dt - Duration::from_secs(60),
         scheduling: sch.clone(),
     };
