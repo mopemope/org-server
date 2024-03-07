@@ -43,21 +43,21 @@ fn create_reminder(title: &str, dt: NaiveDateTime, sch: &Scheduling) -> Vec<Remi
     let mut vec = vec![];
 
     let rem = Reminder {
-        title: format!("{} 30分前", title),
+        title: format!("このイベントまであと30分: {}", title),
         datetime: dt - Duration::from_secs(60 * 30),
         scheduling: sch.clone(),
     };
     vec.push(rem);
 
     let rem = Reminder {
-        title: format!("{} 10分前", title),
+        title: format!("このイベントまであと10分: {}", title),
         datetime: dt - Duration::from_secs(60 * 10),
         scheduling: sch.clone(),
     };
     vec.push(rem);
 
     let rem = Reminder {
-        title: format!("{} 1分前", title),
+        title: format!("このイベントまであと1分: {}", title),
         datetime: dt - Duration::from_secs(60),
         scheduling: sch.clone(),
     };
