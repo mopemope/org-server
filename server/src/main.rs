@@ -9,7 +9,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod config;
 mod notification;
 mod parse;
-mod remainders;
+mod reminders;
 mod utils;
 mod watcher;
 
@@ -39,8 +39,8 @@ async fn main() -> Result<()> {
     watcher::watch_files(&config, tx.clone())?;
 
     // start checker
-    remainders::start_check(rx).await?;
-    remainders::scan(&config, tx.clone())?;
+    reminders::start_check(rx).await?;
+    reminders::scan(&config, tx.clone())?;
 
     run_server(config.server_port).await?;
     Ok(())

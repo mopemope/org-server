@@ -1,8 +1,8 @@
 mod parser;
-mod remainder;
+mod reminder;
 
 pub use parser::parse;
 pub use parser::Context;
 pub use parser::Org;
 pub use parser::OrgParser;
-pub use remainder::Remainder;
+pub use reminder::Reminder;

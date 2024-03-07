@@ -1,7 +1,7 @@
 use crate::{config::Config, notification, parse::parse_org_file};
 use anyhow::Result;
 use chrono::Local;
-use org_parser::{Org, Remainder};
+use org_parser::{Org, Reminder};
 use std::{
     collections::HashSet,
     time::{Duration, Instant},
@@ -10,7 +10,7 @@ use tokio::{sync::mpsc, task, time};
 use tracing::{debug, error};
 use walkdir::WalkDir;
 
-async fn scan_remainders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
+async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
     let now = Instant::now();
     let mut n = 0;
     for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
@@ -41,7 +41,7 @@ pub fn scan(config: &Config, tx: mpsc::Sender<Org>) -> Result<()> {
         let p = p.clone();
         let tx = tx.clone();
         let _ = task::spawn(async move {
-            if let Err(err) = scan_remainders(&p, tx).await {
+            if let Err(err) = scan_reminders(&p, tx).await {
                 error!("ParseError {:?}", err);
             }
         });
@@ -52,8 +52,7 @@ pub fn scan(config: &Config, tx: mpsc::Sender<Org>) -> Result<()> {
 pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
     let _forever = task::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(5));
-        // let mut remainders: Vec<Remainder> = vec![];
-        let mut remainders: HashSet<Remainder> = HashSet::new();
+        let mut reminders: HashSet<Reminder> = HashSet::new();
 
         loop {
             tokio::select! {
@@ -61,7 +60,7 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
                     // debug!("start check");
                     let now = Local::now().naive_local();
                     let mut temp = vec![];
-                    for val in &remainders {
+                    for val in &reminders {
                         if now > val.datetime {
                             // notify
                             let _ = notification::notify("Emacs Org Remainder", &val.title);
@@ -69,26 +68,21 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
                             temp.push(val.clone());  // remove entry
                         }
                     }
-
                     for val in temp {
-                        remainders.remove(&val);
+                        reminders.remove(&val);
                     }
-
-                    //if !remainders.is_empty(){
-                    // debug!("remainder size: {:?}", remainders.len());
-                    //}
 
                 }
                 data = rx.recv() => {
                     if let Some(org) = data {
-                        let res = org.get_remainders();
+                        let res = org.get_reminders();
                         if !res.is_empty() {
                             let now = Local::now().naive_local();
                             for r in res {
                                 if now < r.datetime {
                                     let dr = r.clone();
-                                    if remainders.insert(r) {
-                                        debug!("append remainder: {:?}", &dr);
+                                    if reminders.insert(r) {
+                                        debug!("append reminder: {:?}", &dr);
                                     }
                                 }
                             }

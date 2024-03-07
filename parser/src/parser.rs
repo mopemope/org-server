@@ -1,4 +1,4 @@
-use crate::{remainder::get_remainders, Remainder};
+use crate::{reminder::get_reminders, Reminder};
 use anyhow::Result;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -44,12 +44,12 @@ impl Org {
         }
     }
 
-    pub fn get_remainders(&self) -> Vec<Remainder> {
+    pub fn get_reminders(&self) -> Vec<Reminder> {
         let mut res = vec![];
         for sec in &self.sections {
-            let mut remainders = get_remainders(sec);
-            if !remainders.is_empty() {
-                res.append(&mut remainders)
+            let mut reminders = get_reminders(sec);
+            if !reminders.is_empty() {
+                res.append(&mut reminders)
             }
         }
         res
@@ -1012,7 +1012,7 @@ CONTENT1
 
         assert_eq!(1, sec.drawers.len());
 
-        let rems = org.get_remainders();
+        let rems = org.get_reminders();
         assert_eq!(6, rems.len());
     }
 
