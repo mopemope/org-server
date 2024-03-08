@@ -1,9 +1,7 @@
 use anyhow::Result;
-use axum::{routing::get, Router};
 use clap::Parser;
 use std::path::PathBuf;
-
-use tracing::{debug, info};
+use tracing::debug;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
@@ -12,6 +10,7 @@ mod parse;
 mod reminders;
 mod utils;
 mod watcher;
+mod web;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -42,7 +41,7 @@ async fn main() -> Result<()> {
     reminders::start_check(rx).await?;
     reminders::scan(&config, tx.clone())?;
 
-    run_server(config.server_port).await?;
+    web::run_server(config.server_port).await?;
     Ok(())
 }
 
@@ -54,22 +53,4 @@ fn init_tracing() {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
-}
-
-async fn run_server(port: u32) -> Result<()> {
-    // build our application with a route
-    let app = Router::new()
-        // `GET /` goes to `root`
-        .route("/", get(root));
-
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
-    info!("start server");
-    axum::serve(listener, app).await?;
-    Ok(())
-}
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World!"
 }
