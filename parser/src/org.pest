@@ -1,26 +1,30 @@
 sp = _{ " " | "\t" }
 newline = _{ "\r\n" | "\r" | "\n" }
 
-active_quoted = { "<" ~ active_quoted_inner* ~ ">" }
-active_quoted_inner = _{
-    literal_active_quoted
+active_time_quoted = { "<" ~ active_time_quoted_inner* ~ ">" }
+active_time_quoted_inner = _{
+    literal_active_time_quoted
 }
-literal_active_quoted = ${
+literal_active_time_quoted = ${
     (
         !("<" | ">") ~ ANY
       | sp
     )+
 }
-inactive_quoted = { "[" ~ inactive_quoted_inner* ~ "]" }
-inactive_quoted_inner = _{
-    literal_inactive_quoted
+inactive_time_quoted = { "[" ~ inactive_time_quoted_inner* ~ "]" }
+inactive_time_quoted_inner = _{
+    literal_inactive_time_quoted
 }
-literal_inactive_quoted = ${
+literal_inactive_time_quoted = ${
     (
         !("[" | "]") ~ ANY
       | sp
     )+
 }
+
+scheduled = { ^"SCHEDULED:" ~ sp* ~ (active_time_quoted) }
+deadline = { ^"DEADLINE:" ~ sp* ~ (active_time_quoted) }
+scheduling = { scheduled | deadline }
 
 drawer_sep  = _{":"}
 property_start = _{ drawer_sep ~ ^"PROPERTIES" ~ drawer_sep }
@@ -29,18 +33,35 @@ property_key = { (!drawer_sep ~ ANY)+ }
 property_k = _{ drawer_sep ~ property_key ~ drawer_sep}
 property_value = {
     (
-        active_quoted
-      | inactive_quoted
+        active_time_quoted
+      | inactive_time_quoted
       |!(sp | newline ) ~ ANY
     )+
 }
 property = { property_k ~ sp* ~ property_value ~ sp* }
 properties = { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline*  }
 
-drawer_start = _{ drawer_sep ~ ASCII_ALPHANUMERIC+ ~ drawer_sep }
+drawer_name = { ASCII_ALPHANUMERIC+ }
+drawer_start = _{ drawer_sep ~ drawer_name ~ drawer_sep }
 drawer_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
-drawer_content = ${ ANY+ }
-drawer = { drawer_start ~ sp* ~ newline+ ~ (drawer_content ~ newline)* ~ drawer_end ~ sp* ~ newline*  }
+drawer_content = {
+    (
+        !(^":end:" | NEWLINE)
+        ~ ANY
+    )+
+}
+drawer_contents = ${
+    (
+        sp* ~ active_time_quoted ~ sp*
+      | sp* ~ inactive_time_quoted ~ sp*
+      | drawer_content
+    )+
+}
+drawer = {
+    (drawer_start ~ sp* ~ newline+) ~
+    (drawer_contents ~ newline+)* ~
+    (drawer_end ~ sp* ~ newline*)
+}
 // drawer = { drawer_start ~ sp* ~ newline+ ~ (drawer_content ~ newline)* ~ drawer_end ~ sp* ~ newline  }
 
 keyword_start = _{ "#+" }
@@ -59,11 +80,19 @@ tag = ${
 }
 
 headline_symbol = { "*"+ }
+todo_status = { ^"TODO" | ^"DOING" | ^"DONE" }
 headline_title = { (!(tags|newline) ~ ANY)+ }
-headline = { sp* ~ headline_symbol ~ sp* ~ headline_title ~ sp* ~ tags* }
+headline = { sp* ~ headline_symbol ~ sp* ~ todo_status* ~ sp* ~ headline_title ~ sp* ~ tags* }
 
 text_block = { (!headline ~ ANY)* }
 content = { text_block }
-section = { headline ~ newline+ ~ properties* ~ newline* ~ content ~ newline* }
+section = { headline ~ newline+ ~
+    (
+        scheduling ~ newline*
+      | properties ~ newline*
+      | drawer ~ newline*
+      | keyword ~ newline*
+    )* ~ content ~ newline*
+}
 
-org = { properties* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }
+org = { properties* ~ newline* ~ drawer* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }

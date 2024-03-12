@@ -3,11 +3,26 @@ name = "org-server"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+path = "src/main.rs"
+name = "org-server"
 
 [dependencies]
+org-parser = { path = "../parser" }
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+chrono.workspace = true
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+clap = { version="4", features = ["derive"] }
+globmatch = "0.3"
+regex = "1.5"
+toml = "0.8"
+xdg = "2"
+walkdir = "2"
+futures = "0.3"
+notify-rust = "4"
+notify = "6"

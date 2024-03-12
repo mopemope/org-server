@@ -1,0 +1,32 @@
+:PROPERTIES:
+:ID:       f9ca02e3-8111-4d84-9af2-bbfd98dcf005
+:END:
+#+TITLE: 2024-03-01-Fri
+#+STARTUP: overview
+#+STARTUP: inlineimages
+#+OPTIONS: ^:nil
+
+* エントリー1 :tags:
+:PROPERTIES:
+:ID:       e02bf1ed-02b1-412e-9210-59e79d5e86f9
+:END:
+
+* Structure template :tags:
+:PROPERTIES:
+:ID:       e02bf1ed-02b1-412e-9210-59e79d5e86f9
+:END:
+
+template test
+
+#+begin_src bash
+$ test
+#+end_src
+
+
+* 記録
+:PROPERTIES:
+:ID:       71424fee-5dfd-4d5d-bc39-b8fe08269365
+:END:
+:LOGBOOK:
+CLOCK: [2024-03-01 Fri 09:31]--[2024-03-01 Fri 10:31] =>  1:00
+:END:
