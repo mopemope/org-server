@@ -69,7 +69,7 @@ fn create_reminder(title: &str, dt: NaiveDateTime, sch: &Scheduling) -> Vec<Remi
 fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
     let now = Local::now().naive_local();
     match sch {
-        Scheduling::Scheduled(ref datetime) => {
+        Scheduling::Scheduled(_, ref datetime) => {
             let dt = NaiveDateTime::parse_from_str(datetime, "%F %a %R");
 
             if let Ok(dt) = dt {
@@ -92,7 +92,7 @@ fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
                 }
             }
         }
-        Scheduling::Deadline(ref datetime) => {
+        Scheduling::Deadline(_, ref datetime) => {
             let dt = NaiveDateTime::parse_from_str(datetime, "%F %a %R");
             if let Ok(dt) = dt {
                 if dt > now {
@@ -119,6 +119,8 @@ fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
 
 #[cfg(test)]
 mod tests {
+    use crate::parser::Pos;
+
     use super::*;
     use tracing::debug;
 
@@ -130,15 +132,17 @@ mod tests {
     fn test_convert_reminder() {
         // SCHEDULED: <2024-03-04 Mon 10:00>
         init();
+        let pos = Pos::new(0, 0);
         let rem = convert_reminder(
             "title",
-            &Scheduling::Scheduled("2024-03-04 Mon 13:00".to_string()),
+            &Scheduling::Scheduled(pos, "2024-03-04 Mon 13:00".to_string()),
         );
         debug!("{:?}", rem);
 
+        let pos = Pos::new(0, 0);
         let rem = convert_reminder(
             "title",
-            &Scheduling::Scheduled("2024-03-04 Mon".to_string()),
+            &Scheduling::Scheduled(pos, "2024-03-04 Mon".to_string()),
         );
         debug!("{:?}", rem);
     }

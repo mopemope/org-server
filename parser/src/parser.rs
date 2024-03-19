@@ -56,48 +56,60 @@ impl Org {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Keyword {
-    pub key: String,
-    pub value: String,
+#[derive(Serialize, Deserialize, Clone, Debug, Default, Eq)]
+pub struct Pos {
     pub col: usize,
     pub line: usize,
 }
 
+impl Pos {
+    pub fn new(col: usize, line: usize) -> Self {
+        Pos { col, line }
+    }
+}
+
+impl PartialEq for Pos {
+    fn eq(&self, other: &Self) -> bool {
+        self.col == other.col && self.line == other.line
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct Keyword {
+    pub pos: Pos,
+    pub key: String,
+    pub value: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Properties {
-    pub col: usize,
-    pub line: usize,
+    pub pos: Pos,
     pub children: Vec<Property>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Property {
+    pub pos: Pos,
     pub key: String,
     pub value: String,
-    pub col: usize,
-    pub line: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Drawer {
+    pub pos: Pos,
     pub name: String,
-    pub col: usize,
-    pub line: usize,
     pub children: Vec<Content>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Content {
-    pub col: usize,
-    pub line: usize,
+    pub pos: Pos,
     pub contents: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Section {
-    pub col: usize,
-    pub line: usize,
+    pub pos: Pos,
     pub title: String,
     pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
@@ -109,15 +121,15 @@ pub struct Section {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq)]
 pub enum Scheduling {
-    Scheduled(String),
-    Deadline(String),
+    Scheduled(Pos, String),
+    Deadline(Pos, String),
 }
 
 impl PartialEq for Scheduling {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Scheduling::Scheduled(a), Scheduling::Scheduled(b)) => a == b,
-            (Scheduling::Deadline(a), Scheduling::Deadline(b)) => a == b,
+            (Scheduling::Scheduled(_, a), Scheduling::Scheduled(_, b)) => a == b,
+            (Scheduling::Deadline(_, a), Scheduling::Deadline(_, b)) => a == b,
             _ => false,
         }
     }
@@ -126,11 +138,11 @@ impl PartialEq for Scheduling {
 impl Hash for Scheduling {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Scheduling::Scheduled(data) => {
+            Scheduling::Scheduled(_, data) => {
                 state.write(&[1]);
                 data.hash(state);
             }
-            Scheduling::Deadline(data) => {
+            Scheduling::Deadline(_, data) => {
                 state.write(&[2]);
                 data.hash(state);
             }
@@ -141,8 +153,7 @@ impl Hash for Scheduling {
 fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
     let mut properties: Properties = Default::default();
     let (line, col) = pair.line_col();
-    properties.line = line;
-    properties.col = col;
+    properties.pos = Pos::new(col, line);
 
     for pair in pair.into_inner() {
         let mut prop: Property = Default::default();
@@ -152,8 +163,7 @@ fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
                 Rule::property_key => {
                     let (line, col) = pair.line_col();
                     prop.key = pair.as_str().to_string();
-                    prop.line = line;
-                    prop.col = col;
+                    prop.pos = Pos::new(col, line);
                 }
                 Rule::property_value => {
                     prop.value = pair.as_str().to_string();
@@ -169,8 +179,7 @@ fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
 fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
     let mut drawer: Drawer = Default::default();
     let (line, col) = pair.line_col();
-    drawer.line = line;
-    drawer.col = col;
+    drawer.pos = Pos::new(col, line);
 
     for pair in pair.into_inner() {
         match pair.as_rule() {
@@ -183,8 +192,7 @@ fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
                         Rule::drawer_content => {
                             let mut content: Content = Default::default();
                             let (line, col) = pair.line_col();
-                            content.line = line;
-                            content.col = col;
+                            content.pos = Pos::new(col, line);
                             content.contents = pair.as_str().to_string();
                             drawer.children.push(content);
                         }
@@ -206,8 +214,7 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
             Rule::keyword_key => {
                 let (line, col) = pair.line_col();
                 kw.key = pair.as_str().to_string();
-                kw.col = col;
-                kw.line = line;
+                kw.pos = Pos::new(col, line);
             }
             Rule::keyword_value => {
                 kw.value = pair.as_str().to_string();
@@ -223,8 +230,7 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
 fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     let mut section: Section = Default::default();
     let (line, col) = pair.line_col();
-    section.col = col;
-    section.line = line;
+    section.pos = Pos::new(col, line);
 
     for pair in pair.into_inner() {
         match pair.as_rule() {
@@ -265,7 +271,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                         Rule::scheduled => {
                             if let Some(pair) = pair.into_inner().next() {
                                 if let Some(pair) = pair.into_inner().next() {
-                                    let sch = Scheduling::Scheduled(pair.as_str().to_string());
+                                    let (line, col) = pair.line_col();
+                                    let pos = Pos::new(col, line);
+                                    let sch = Scheduling::Scheduled(pos, pair.as_str().to_string());
                                     section.scheduling.push(sch);
                                 }
                             }
@@ -273,7 +281,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                         Rule::deadline => {
                             if let Some(pair) = pair.into_inner().next() {
                                 if let Some(pair) = pair.into_inner().next() {
-                                    let sch = Scheduling::Deadline(pair.as_str().to_string());
+                                    let (line, col) = pair.line_col();
+                                    let pos = Pos::new(col, line);
+                                    let sch = Scheduling::Deadline(pos, pair.as_str().to_string());
                                     section.scheduling.push(sch);
                                 }
                             }
@@ -285,8 +295,7 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
             Rule::content => {
                 let mut content: Content = Default::default();
                 let (line, col) = pair.line_col();
-                content.col = col;
-                content.line = line;
+                content.pos = Pos::new(col, line);
                 content.contents = pair.as_str().to_string();
                 section.contents.push(content);
             }

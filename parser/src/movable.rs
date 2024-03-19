@@ -6,22 +6,22 @@ pub trait Movable {
 
 impl Movable for Content {
     fn move_point(&mut self, col: isize, line: isize) {
-        self.col = self.col.saturating_add_signed(col);
-        self.line = self.col.saturating_add_signed(line);
+        self.pos.col = self.pos.col.saturating_add_signed(col);
+        self.pos.line = self.pos.col.saturating_add_signed(line);
     }
 }
 
 impl Movable for Keyword {
     fn move_point(&mut self, col: isize, line: isize) {
-        self.col = self.col.saturating_add_signed(col);
-        self.line = self.col.saturating_add_signed(line);
+        self.pos.col = self.pos.col.saturating_add_signed(col);
+        self.pos.line = self.pos.col.saturating_add_signed(line);
     }
 }
 
 impl Movable for Properties {
     fn move_point(&mut self, col: isize, line: isize) {
-        self.col = self.col.saturating_add_signed(col);
-        self.line = self.col.saturating_add_signed(line);
+        self.pos.col = self.pos.col.saturating_add_signed(col);
+        self.pos.line = self.pos.col.saturating_add_signed(line);
         for prop in self.children.iter_mut() {
             prop.move_point(col, line);
         }
@@ -30,15 +30,15 @@ impl Movable for Properties {
 
 impl Movable for Property {
     fn move_point(&mut self, col: isize, line: isize) {
-        self.col = self.col.saturating_add_signed(col);
-        self.line = self.col.saturating_add_signed(line);
+        self.pos.col = self.pos.col.saturating_add_signed(col);
+        self.pos.line = self.pos.col.saturating_add_signed(line);
     }
 }
 
 impl Movable for Drawer {
     fn move_point(&mut self, col: isize, line: isize) {
-        self.col = self.col.saturating_add_signed(col);
-        self.line = self.col.saturating_add_signed(line);
+        self.pos.col = self.pos.col.saturating_add_signed(col);
+        self.pos.line = self.pos.col.saturating_add_signed(line);
         for content in self.children.iter_mut() {
             content.move_point(col, line);
         }
@@ -47,8 +47,8 @@ impl Movable for Drawer {
 
 impl Movable for Section {
     fn move_point(&mut self, col: isize, line: isize) {
-        self.col = self.col.saturating_add_signed(col);
-        self.line = self.col.saturating_add_signed(line);
+        self.pos.col = self.pos.col.saturating_add_signed(col);
+        self.pos.line = self.pos.col.saturating_add_signed(line);
         for dr in self.drawers.iter_mut() {
             dr.move_point(col, line);
         }
