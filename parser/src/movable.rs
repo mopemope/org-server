@@ -1,4 +1,4 @@
-use crate::parser::{Content, Drawer, Keyword, Properties, Property, Section};
+use crate::parser::{Content, Drawer, Keyword, Properties, Property, Scheduling, Section};
 
 pub trait Movable {
     fn move_point(&mut self, col: isize, line: isize);
@@ -45,6 +45,21 @@ impl Movable for Drawer {
     }
 }
 
+impl Movable for Scheduling {
+    fn move_point(&mut self, col: isize, line: isize) {
+        match self {
+            Scheduling::Scheduled(ref mut pos, _) => {
+                pos.col = pos.col.saturating_add_signed(col);
+                pos.line = pos.col.saturating_add_signed(line);
+            }
+            Scheduling::Deadline(pos, _) => {
+                pos.col = pos.col.saturating_add_signed(col);
+                pos.line = pos.col.saturating_add_signed(line);
+            }
+        }
+    }
+}
+
 impl Movable for Section {
     fn move_point(&mut self, col: isize, line: isize) {
         self.pos.col = self.pos.col.saturating_add_signed(col);
@@ -57,6 +72,9 @@ impl Movable for Section {
         }
         for kw in self.keywords.iter_mut() {
             kw.move_point(col, line);
+        }
+        for sch in self.scheduling.iter_mut() {
+            sch.move_point(col, line);
         }
         for content in self.contents.iter_mut() {
             content.move_point(col, line);
