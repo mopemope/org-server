@@ -6,6 +6,7 @@ use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use tracing::debug;
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[grammar = "org.pest"]
@@ -107,9 +108,10 @@ pub struct Content {
     pub contents: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Section {
     pub pos: Pos,
+    pub id: String,
     pub title: String,
     pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
@@ -117,6 +119,22 @@ pub struct Section {
     pub contents: Vec<Content>,
     pub sections: Vec<Section>,
     pub scheduling: Vec<Scheduling>,
+}
+
+impl Default for Section {
+    fn default() -> Self {
+        Self {
+            pos: Default::default(),
+            id: Uuid::new_v4().to_string(),
+            title: Default::default(),
+            drawers: Default::default(),
+            properties: Default::default(),
+            keywords: Default::default(),
+            contents: Default::default(),
+            sections: Default::default(),
+            scheduling: Default::default(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq)]
@@ -254,8 +272,13 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 }
             }
             Rule::properties => {
-                let prop = parse_properties(ctx, pair);
-                section.properties.push(prop);
+                let props = parse_properties(ctx, pair);
+                for prop in &props.children {
+                    if prop.key.to_lowercase() == "id" {
+                        section.id = prop.value.clone();
+                    }
+                }
+                section.properties.push(props);
             }
             Rule::drawer => {
                 let drawer = parse_drawer(ctx, pair);
