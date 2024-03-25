@@ -7,12 +7,26 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+anyhow.version = "1"
+anyhow.default-features = false
 tracing.workspace = true
+tracing.version = "0.1"
+tracing.default-features = false
 tracing-subscriber.workspace = true
+tracing-subscriber.version = "0.3"
+tracing-subscriber.default-features = false
 serde.workspace = true
+serde.version = "1.0"
+serde.default-features = false
 serde_json.workspace = true
+serde_json.version = "1"
+serde_json.default-features = false
 chrono.workspace = true
+chrono.version = "0.4"
+chrono.default-features = false
 uuid.workspace = true
-regex = "1.5"
-pest = "2"
+uuid.version = "1"
+uuid.default-features = false
+regex = { version = "1.5", default-features = false }
+pest = { version = "2", features = ["std"], default-features = false }
 pest_derive = "2"
