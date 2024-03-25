@@ -26,7 +26,7 @@ impl Hash for Reminder {
 pub fn get_reminders(sec: &Section) -> Vec<Reminder> {
     let mut res = vec![];
     for sch in &sec.scheduling {
-        if let Some(mut reminders) = convert_reminder(&sec.title, sch) {
+        if let Some(mut reminders) = convert_reminder(sch) {
             res.append(&mut reminders);
         }
     }
@@ -39,25 +39,37 @@ pub fn get_reminders(sec: &Section) -> Vec<Reminder> {
     res
 }
 
-fn create_reminder(title: &str, dt: NaiveDateTime, sch: &Scheduling) -> Vec<Reminder> {
+fn create_reminder(dt: NaiveDateTime, sch: &Scheduling) -> Vec<Reminder> {
     let mut vec = vec![];
 
+    let (t30, t10, t1) = match sch {
+        Scheduling::Deadline(_, title, _) => (
+            format!("このイベント終了まであと30分: {}", title),
+            format!("このイベント終了 まであと10分: {}", title),
+            format!("このイベント終了まであと1分: {}", title),
+        ),
+        Scheduling::Scheduled(_, title, _) => (
+            format!("このイベント開始まであと30分: {}", title),
+            format!("このイベント開始まであと10分: {}", title),
+            format!("このイベント開始まであと1分: {}", title),
+        ),
+    };
     let rem = Reminder {
-        title: format!("このイベントまであと30分: {}", title),
+        title: t30,
         datetime: dt - Duration::from_secs(60 * 30),
         scheduling: sch.clone(),
     };
     vec.push(rem);
 
     let rem = Reminder {
-        title: format!("このイベントまであと10分: {}", title),
+        title: t10,
         datetime: dt - Duration::from_secs(60 * 10),
         scheduling: sch.clone(),
     };
     vec.push(rem);
 
     let rem = Reminder {
-        title: format!("このイベントまであと1分: {}", title),
+        title: t1,
         datetime: dt - Duration::from_secs(60),
         scheduling: sch.clone(),
     };
@@ -66,15 +78,15 @@ fn create_reminder(title: &str, dt: NaiveDateTime, sch: &Scheduling) -> Vec<Remi
 }
 
 // TODO refactor
-fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
+fn convert_reminder(sch: &Scheduling) -> Option<Vec<Reminder>> {
     let now = Local::now().naive_local();
     match sch {
-        Scheduling::Scheduled(_, ref datetime) => {
+        Scheduling::Scheduled(_, _title, ref datetime) => {
             let dt = NaiveDateTime::parse_from_str(datetime, "%F %a %R");
 
             if let Ok(dt) = dt {
                 if dt > now {
-                    Some(create_reminder(title, dt, sch))
+                    Some(create_reminder(dt, sch))
                 } else {
                     None
                 }
@@ -83,7 +95,7 @@ fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
                 let dt = NaiveDateTime::parse_from_str(&datetime, "%F %a %R");
                 if let Ok(dt) = dt {
                     if dt > now {
-                        Some(create_reminder(title, dt, sch))
+                        Some(create_reminder(dt, sch))
                     } else {
                         None
                     }
@@ -92,11 +104,11 @@ fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
                 }
             }
         }
-        Scheduling::Deadline(_, ref datetime) => {
+        Scheduling::Deadline(_, _title, ref datetime) => {
             let dt = NaiveDateTime::parse_from_str(datetime, "%F %a %R");
             if let Ok(dt) = dt {
                 if dt > now {
-                    Some(create_reminder(title, dt, sch))
+                    Some(create_reminder(dt, sch))
                 } else {
                     None
                 }
@@ -105,7 +117,7 @@ fn convert_reminder(title: &str, sch: &Scheduling) -> Option<Vec<Reminder>> {
                 let dt = NaiveDateTime::parse_from_str(&datetime, "%F %a %R");
                 if let Ok(dt) = dt {
                     if dt > now {
-                        Some(create_reminder(title, dt, sch))
+                        Some(create_reminder(dt, sch))
                     } else {
                         None
                     }
@@ -133,17 +145,19 @@ mod tests {
         // SCHEDULED: <2024-03-04 Mon 10:00>
         init();
         let pos = Pos::new(0, 0);
-        let rem = convert_reminder(
-            "title",
-            &Scheduling::Scheduled(pos, "2024-03-04 Mon 13:00".to_string()),
-        );
+        let rem = convert_reminder(&Scheduling::Scheduled(
+            pos,
+            "title".to_string(),
+            "2024-03-04 Mon 13:00".to_string(),
+        ));
         debug!("{:?}", rem);
 
         let pos = Pos::new(0, 0);
-        let rem = convert_reminder(
-            "title",
-            &Scheduling::Scheduled(pos, "2024-03-04 Mon".to_string()),
-        );
+        let rem = convert_reminder(&Scheduling::Scheduled(
+            pos,
+            "title".to_string(),
+            "2024-03-04 Mon".to_string(),
+        ));
         debug!("{:?}", rem);
     }
 }

@@ -48,11 +48,11 @@ impl Movable for Drawer {
 impl Movable for Scheduling {
     fn move_point(&mut self, col: isize, line: isize) {
         match self {
-            Scheduling::Scheduled(ref mut pos, _) => {
+            Scheduling::Scheduled(ref mut pos, _, _) => {
                 pos.col = pos.col.saturating_add_signed(col);
                 pos.line = pos.col.saturating_add_signed(line);
             }
-            Scheduling::Deadline(pos, _) => {
+            Scheduling::Deadline(pos, _, _) => {
                 pos.col = pos.col.saturating_add_signed(col);
                 pos.line = pos.col.saturating_add_signed(line);
             }

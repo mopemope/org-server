@@ -139,15 +139,17 @@ impl Default for Section {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq)]
 pub enum Scheduling {
-    Scheduled(Pos, String),
-    Deadline(Pos, String),
+    Scheduled(Pos, String, String),
+    Deadline(Pos, String, String),
 }
 
 impl PartialEq for Scheduling {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Scheduling::Scheduled(_, a), Scheduling::Scheduled(_, b)) => a == b,
-            (Scheduling::Deadline(_, a), Scheduling::Deadline(_, b)) => a == b,
+            (Scheduling::Scheduled(_, t1, a), Scheduling::Scheduled(_, t2, b)) => {
+                t1 == t2 && a == b
+            }
+            (Scheduling::Deadline(_, t1, a), Scheduling::Deadline(_, t2, b)) => t1 == t2 && a == b,
             _ => false,
         }
     }
@@ -156,12 +158,14 @@ impl PartialEq for Scheduling {
 impl Hash for Scheduling {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Scheduling::Scheduled(_, data) => {
+            Scheduling::Scheduled(_, title, data) => {
                 state.write(&[1]);
+                state.write(title.as_bytes());
                 data.hash(state);
             }
-            Scheduling::Deadline(_, data) => {
+            Scheduling::Deadline(_, title, data) => {
                 state.write(&[2]);
+                state.write(title.as_bytes());
                 data.hash(state);
             }
         }
@@ -296,7 +300,11 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                                 if let Some(pair) = pair.into_inner().next() {
                                     let (line, col) = pair.line_col();
                                     let pos = Pos::new(col, line);
-                                    let sch = Scheduling::Scheduled(pos, pair.as_str().to_string());
+                                    let sch = Scheduling::Scheduled(
+                                        pos,
+                                        section.title.clone(),
+                                        pair.as_str().to_string(),
+                                    );
                                     section.scheduling.push(sch);
                                 }
                             }
@@ -306,7 +314,11 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                                 if let Some(pair) = pair.into_inner().next() {
                                     let (line, col) = pair.line_col();
                                     let pos = Pos::new(col, line);
-                                    let sch = Scheduling::Deadline(pos, pair.as_str().to_string());
+                                    let sch = Scheduling::Deadline(
+                                        pos,
+                                        section.title.clone(),
+                                        pair.as_str().to_string(),
+                                    );
                                     section.scheduling.push(sch);
                                 }
                             }
