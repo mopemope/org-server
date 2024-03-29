@@ -26,8 +26,8 @@ pub struct Org {
     pub filename: Option<String>,
     pub id: Option<String>,
     pub title: Option<String>,
-    pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
+    pub drawers: Vec<Drawer>,
     pub keywords: Vec<Keyword>,
     pub sections: Vec<Section>,
 }
