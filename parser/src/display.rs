@@ -34,7 +34,7 @@ impl std::fmt::Display for PropertiesDisplay<'_> {
         for p in props {
             writeln!(f, "{}", p)?;
         }
-        writeln!(f, ":END:")?;
+        write!(f, ":END:")?;
         Ok(())
     }
 }
@@ -94,7 +94,7 @@ impl std::fmt::Display for DrawerDisplay<'_> {
             writeln!(f, "{}", c)?;
         }
 
-        writeln!(f, ":END:")?;
+        write!(f, ":END:")?;
 
         Ok(())
     }
