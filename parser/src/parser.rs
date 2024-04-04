@@ -121,10 +121,22 @@ pub struct Drawer {
     pub children: Vec<Content>,
 }
 
+impl Drawer {
+    pub fn display(&self) -> display::DrawerDisplay<'_> {
+        display::DrawerDisplay { inner: self }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Content {
     pub pos: Pos,
     pub contents: String,
+}
+
+impl Content {
+    pub fn display(&self) -> display::ContentDisplay<'_> {
+        display::ContentDisplay { inner: self }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -1,4 +1,4 @@
-use crate::parser::{Keyword, Properties, Property};
+use crate::parser::{Content, Drawer, Keyword, Properties, Property};
 
 pub trait HasPos {
     fn line(&self) -> usize;
@@ -51,13 +51,56 @@ pub struct KeywordDisplay<'a> {
 
 impl std::fmt::Display for KeywordDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // #+TITLE: 2024-04-04-Thu
         write!(f, "#+{}: {}", self.inner.key, self.inner.value)?;
         Ok(())
     }
 }
 
 impl HasPos for KeywordDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
+pub struct ContentDisplay<'a> {
+    pub inner: &'a Content,
+}
+
+impl std::fmt::Display for ContentDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.inner.contents)?;
+        Ok(())
+    }
+}
+
+impl HasPos for ContentDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
+pub struct DrawerDisplay<'a> {
+    pub inner: &'a Drawer,
+}
+
+impl std::fmt::Display for DrawerDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut contents: Vec<ContentDisplay> =
+            self.inner.children.iter().map(|p| p.display()).collect();
+        contents.sort_by_key(|a| a.line());
+
+        writeln!(f, ":{}:", self.inner.name.to_uppercase())?;
+        for c in contents {
+            writeln!(f, "{}", c)?;
+        }
+
+        writeln!(f, ":END:")?;
+
+        Ok(())
+    }
+}
+
+impl HasPos for DrawerDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -101,6 +144,16 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
         org
+    }
+
+    #[test]
+    fn test_display_drawer() {
+        init();
+        let org = get_test_org();
+        let sec = org.sections.get(0).unwrap();
+        for drawer in &sec.drawers {
+            debug!("{:?}", drawer.display().to_string());
+        }
     }
 
     #[test]
