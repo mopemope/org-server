@@ -56,6 +56,10 @@ impl Org {
         }
         res
     }
+
+    pub fn display(&self) -> display::OrgDisplay<'_> {
+        display::OrgDisplay { inner: self }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, Eq)]

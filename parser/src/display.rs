@@ -1,4 +1,4 @@
-use crate::parser::{Content, Drawer, Keyword, Properties, Property, Scheduling, Section};
+use crate::parser::{Content, Drawer, Keyword, Org, Properties, Property, Scheduling, Section};
 
 pub trait HasPos: std::fmt::Display {
     fn line(&self) -> usize;
@@ -176,6 +176,36 @@ impl HasPos for SectionDisplay<'_> {
     }
 }
 
+pub struct OrgDisplay<'a> {
+    pub inner: &'a Org,
+}
+
+impl std::fmt::Display for OrgDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut contents: Vec<Box<dyn HasPos>> = vec![];
+
+        for kw in &self.inner.keywords {
+            contents.push(Box::new(kw.display()));
+        }
+        for props in &self.inner.properties {
+            contents.push(Box::new(props.display()));
+        }
+        for drawer in &self.inner.drawers {
+            contents.push(Box::new(drawer.display()));
+        }
+        for sec in &self.inner.sections {
+            contents.push(Box::new(sec.display()));
+        }
+        contents.sort_by_key(|a| a.line());
+
+        for c in contents {
+            writeln!(f, "{}", c)?;
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,6 +244,13 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
         org
+    }
+
+    #[test]
+    fn test_display_org() {
+        init();
+        let org = get_test_org();
+        debug!("{:?}", org.display().to_string());
     }
 
     #[test]
