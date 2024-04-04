@@ -1,11 +1,11 @@
-use crate::parser::{Content, Drawer, Keyword, Org, Properties, Property, Scheduling, Section};
+use crate::parser;
 
 pub trait HasPos: std::fmt::Display {
     fn line(&self) -> usize;
 }
 
 pub struct PropertyDisplay<'a> {
-    pub inner: &'a Property,
+    pub inner: &'a parser::Property,
 }
 
 impl std::fmt::Display for PropertyDisplay<'_> {
@@ -22,7 +22,7 @@ impl HasPos for PropertyDisplay<'_> {
 }
 
 pub struct PropertiesDisplay<'a> {
-    pub inner: &'a Properties,
+    pub inner: &'a parser::Properties,
 }
 
 impl std::fmt::Display for PropertiesDisplay<'_> {
@@ -46,7 +46,7 @@ impl HasPos for PropertiesDisplay<'_> {
 }
 
 pub struct KeywordDisplay<'a> {
-    pub inner: &'a Keyword,
+    pub inner: &'a parser::Keyword,
 }
 
 impl std::fmt::Display for KeywordDisplay<'_> {
@@ -63,7 +63,7 @@ impl HasPos for KeywordDisplay<'_> {
 }
 
 pub struct ContentDisplay<'a> {
-    pub inner: &'a Content,
+    pub inner: &'a parser::Content,
 }
 
 impl std::fmt::Display for ContentDisplay<'_> {
@@ -80,7 +80,7 @@ impl HasPos for ContentDisplay<'_> {
 }
 
 pub struct DrawerDisplay<'a> {
-    pub inner: &'a Drawer,
+    pub inner: &'a parser::Drawer,
 }
 
 impl std::fmt::Display for DrawerDisplay<'_> {
@@ -107,14 +107,14 @@ impl HasPos for DrawerDisplay<'_> {
 }
 
 pub struct SchedulingDisplay<'a> {
-    pub inner: &'a Scheduling,
+    pub inner: &'a parser::Scheduling,
 }
 
 impl std::fmt::Display for SchedulingDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let str = match self.inner {
-            Scheduling::Scheduled(_, _, dt) => format!("SCHEDULED: <{}>", dt),
-            Scheduling::Deadline(_, _, dt) => format!("DEADLINE: <{}>", dt),
+            parser::Scheduling::Scheduled(_, _, dt) => format!("SCHEDULED: <{}>", dt),
+            parser::Scheduling::Deadline(_, _, dt) => format!("DEADLINE: <{}>", dt),
         };
         write!(f, "{}", str)?;
         Ok(())
@@ -124,15 +124,15 @@ impl std::fmt::Display for SchedulingDisplay<'_> {
 impl HasPos for SchedulingDisplay<'_> {
     fn line(&self) -> usize {
         let pos = match self.inner {
-            Scheduling::Scheduled(pos, _, _) => pos,
-            Scheduling::Deadline(pos, _, _) => pos,
+            parser::Scheduling::Scheduled(pos, _, _) => pos,
+            parser::Scheduling::Deadline(pos, _, _) => pos,
         };
         pos.line
     }
 }
 
 pub struct SectionDisplay<'a> {
-    pub inner: &'a Section,
+    pub inner: &'a parser::Section,
 }
 
 impl std::fmt::Display for SectionDisplay<'_> {
@@ -177,7 +177,7 @@ impl HasPos for SectionDisplay<'_> {
 }
 
 pub struct OrgDisplay<'a> {
-    pub inner: &'a Org,
+    pub inner: &'a parser::Org,
 }
 
 impl std::fmt::Display for OrgDisplay<'_> {
@@ -208,7 +208,7 @@ impl std::fmt::Display for OrgDisplay<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     use crate::parser::{parse, Context, Org};
     use tracing::debug;
 
