@@ -242,8 +242,8 @@ CONTENT1
 "#;
 
         let mut ctx = Context::new();
-        let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
-        org
+        
+        parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e))
     }
 
     #[test]
@@ -257,7 +257,7 @@ CONTENT1
     fn test_display_scheduling() {
         init();
         let org = get_test_org();
-        let sec = org.sections.get(0).unwrap();
+        let sec = org.sections.first().unwrap();
         for sch in &sec.scheduling {
             debug!("{:?}", sch.display().to_string());
         }
@@ -267,7 +267,7 @@ CONTENT1
     fn test_display_section() {
         init();
         let org = get_test_org();
-        let sec = org.sections.get(0).unwrap();
+        let sec = org.sections.first().unwrap();
         debug!("{:?}", sec.display().to_string());
     }
 
@@ -275,7 +275,7 @@ CONTENT1
     fn test_display_drawer() {
         init();
         let org = get_test_org();
-        let sec = org.sections.get(0).unwrap();
+        let sec = org.sections.first().unwrap();
         for drawer in &sec.drawers {
             debug!("{:?}", drawer.display().to_string());
         }
