@@ -89,6 +89,12 @@ pub struct Properties {
     pub children: Vec<Property>,
 }
 
+impl Properties {
+    pub fn display(&self) -> display::PropertiesDisplay<'_> {
+        display::PropertiesDisplay { inner: self }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Property {
     pub pos: Pos,

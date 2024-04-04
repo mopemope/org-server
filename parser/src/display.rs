@@ -1,4 +1,4 @@
-use crate::parser::Property;
+use crate::parser::{Properties, Property};
 
 pub trait HasPos {
     fn line(&self) -> usize;
@@ -21,6 +21,30 @@ impl HasPos for PropertyDisplay<'_> {
     }
 }
 
+pub struct PropertiesDisplay<'a> {
+    pub inner: &'a Properties,
+}
+
+impl std::fmt::Display for PropertiesDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut props: Vec<PropertyDisplay> =
+            self.inner.children.iter().map(|p| p.display()).collect();
+        props.sort_by_key(|a| a.line());
+        writeln!(f, ":PROPERTIES:")?;
+        for p in props {
+            writeln!(f, "{}", p)?;
+        }
+        writeln!(f, ":END:")?;
+        Ok(())
+    }
+}
+
+impl HasPos for PropertiesDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -33,7 +57,8 @@ mod tests {
 
     fn get_test_org() -> Org {
         let content = r#":PROPERTIES:
-:ID:   value
+:ID:   value1
+:ID:   value2
 :END:
 #+TITLE: title
 #+STARTUP: overview
@@ -58,6 +83,15 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
         org
+    }
+
+    #[test]
+    fn test_display_properties() {
+        init();
+        let org = get_test_org();
+        for props in &org.properties {
+            debug!("{:?}", props.display().to_string());
+        }
     }
 
     #[test]
