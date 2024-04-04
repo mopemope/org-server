@@ -1,3 +1,4 @@
+use crate::display;
 use crate::{reminder::get_reminders, Reminder};
 use anyhow::Result;
 use pest::iterators::Pair;
@@ -93,6 +94,12 @@ pub struct Property {
     pub pos: Pos,
     pub key: String,
     pub value: String,
+}
+
+impl Property {
+    pub fn display(&self) -> display::PropertyDisplay<'_> {
+        display::PropertyDisplay { inner: self }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
