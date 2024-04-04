@@ -1,6 +1,6 @@
-use crate::parser::{Content, Drawer, Keyword, Properties, Property};
+use crate::parser::{Content, Drawer, Keyword, Properties, Property, Scheduling, Section};
 
-pub trait HasPos {
+pub trait HasPos: std::fmt::Display {
     fn line(&self) -> usize;
 }
 
@@ -106,6 +106,76 @@ impl HasPos for DrawerDisplay<'_> {
     }
 }
 
+pub struct SchedulingDisplay<'a> {
+    pub inner: &'a Scheduling,
+}
+
+impl std::fmt::Display for SchedulingDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let str = match self.inner {
+            Scheduling::Scheduled(_, _, dt) => format!("SCHEDULED: <{}>", dt),
+            Scheduling::Deadline(_, _, dt) => format!("DEADLINE: <{}>", dt),
+        };
+        write!(f, "{}", str)?;
+        Ok(())
+    }
+}
+
+impl HasPos for SchedulingDisplay<'_> {
+    fn line(&self) -> usize {
+        let pos = match self.inner {
+            Scheduling::Scheduled(pos, _, _) => pos,
+            Scheduling::Deadline(pos, _, _) => pos,
+        };
+        pos.line
+    }
+}
+
+pub struct SectionDisplay<'a> {
+    pub inner: &'a Section,
+}
+
+impl std::fmt::Display for SectionDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut contents: Vec<Box<dyn HasPos>> = vec![];
+
+        for kw in &self.inner.keywords {
+            contents.push(Box::new(kw.display()));
+        }
+        for sch in &self.inner.scheduling {
+            contents.push(Box::new(sch.display()));
+        }
+        for props in &self.inner.properties {
+            contents.push(Box::new(props.display()));
+        }
+        for drawer in &self.inner.drawers {
+            contents.push(Box::new(drawer.display()));
+        }
+        for con in &self.inner.contents {
+            contents.push(Box::new(con.display()));
+        }
+        for sec in &self.inner.sections {
+            contents.push(Box::new(sec.display()));
+        }
+
+        contents.sort_by_key(|a| a.line());
+
+        writeln!(f, "{} {}", self.inner.headline_symbol, self.inner.title)?; // headline
+
+        for c in contents {
+            writeln!(f, "{}", c)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl HasPos for SectionDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +214,24 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
         org
+    }
+
+    #[test]
+    fn test_display_scheduling() {
+        init();
+        let org = get_test_org();
+        let sec = org.sections.get(0).unwrap();
+        for sch in &sec.scheduling {
+            debug!("{:?}", sch.display().to_string());
+        }
+    }
+
+    #[test]
+    fn test_display_section() {
+        init();
+        let org = get_test_org();
+        let sec = org.sections.get(0).unwrap();
+        debug!("{:?}", sec.display().to_string());
     }
 
     #[test]

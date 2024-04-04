@@ -153,6 +153,12 @@ pub struct Section {
     pub scheduling: Vec<Scheduling>,
 }
 
+impl Section {
+    pub fn display(&self) -> display::SectionDisplay<'_> {
+        display::SectionDisplay { inner: self }
+    }
+}
+
 impl Default for Section {
     fn default() -> Self {
         Self {
@@ -174,6 +180,12 @@ impl Default for Section {
 pub enum Scheduling {
     Scheduled(Pos, String, String),
     Deadline(Pos, String, String),
+}
+
+impl Scheduling {
+    pub fn display(&self) -> display::SchedulingDisplay<'_> {
+        display::SchedulingDisplay { inner: self }
+    }
 }
 
 impl PartialEq for Scheduling {
