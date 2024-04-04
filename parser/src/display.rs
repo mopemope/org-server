@@ -1,4 +1,4 @@
-use crate::parser::{Properties, Property};
+use crate::parser::{Keyword, Properties, Property};
 
 pub trait HasPos {
     fn line(&self) -> usize;
@@ -45,6 +45,24 @@ impl HasPos for PropertiesDisplay<'_> {
     }
 }
 
+pub struct KeywordDisplay<'a> {
+    pub inner: &'a Keyword,
+}
+
+impl std::fmt::Display for KeywordDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // #+TITLE: 2024-04-04-Thu
+        write!(f, "#+{}: {}", self.inner.key, self.inner.value)?;
+        Ok(())
+    }
+}
+
+impl HasPos for KeywordDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,6 +101,15 @@ CONTENT1
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
         org
+    }
+
+    #[test]
+    fn test_display_keyword() {
+        init();
+        let org = get_test_org();
+        for kw in &org.keywords {
+            debug!("{:?}", kw.display().to_string());
+        }
     }
 
     #[test]

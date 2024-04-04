@@ -83,6 +83,12 @@ pub struct Keyword {
     pub value: String,
 }
 
+impl Keyword {
+    pub fn display(&self) -> display::KeywordDisplay<'_> {
+        display::KeywordDisplay { inner: self }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Properties {
     pub pos: Pos,
