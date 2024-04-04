@@ -143,6 +143,7 @@ impl Content {
 pub struct Section {
     pub pos: Pos,
     pub id: String,
+    pub headline_symbol: String,
     pub title: String,
     pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
@@ -157,6 +158,7 @@ impl Default for Section {
         Self {
             pos: Default::default(),
             id: Uuid::new_v4().to_string(),
+            headline_symbol: Default::default(),
             title: Default::default(),
             drawers: Default::default(),
             properties: Default::default(),
@@ -293,7 +295,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                     for pair in parsed {
                         for pair in pair.into_inner() {
                             match pair.as_rule() {
-                                Rule::headline_symbol => {}
+                                Rule::headline_symbol => {
+                                    section.headline_symbol = pair.as_str().to_string();
+                                }
                                 Rule::headline_title => {
                                     section.title = pair.as_str().to_string();
                                 }
