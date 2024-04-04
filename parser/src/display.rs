@@ -1,6 +1,6 @@
 use crate::parser;
 
-pub trait HasPos: std::fmt::Display {
+pub trait Display: std::fmt::Display {
     fn line(&self) -> usize;
 }
 
@@ -15,7 +15,7 @@ impl std::fmt::Display for PropertyDisplay<'_> {
     }
 }
 
-impl HasPos for PropertyDisplay<'_> {
+impl Display for PropertyDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -39,7 +39,7 @@ impl std::fmt::Display for PropertiesDisplay<'_> {
     }
 }
 
-impl HasPos for PropertiesDisplay<'_> {
+impl Display for PropertiesDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -56,7 +56,7 @@ impl std::fmt::Display for KeywordDisplay<'_> {
     }
 }
 
-impl HasPos for KeywordDisplay<'_> {
+impl Display for KeywordDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -73,7 +73,7 @@ impl std::fmt::Display for ContentDisplay<'_> {
     }
 }
 
-impl HasPos for ContentDisplay<'_> {
+impl Display for ContentDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -100,7 +100,7 @@ impl std::fmt::Display for DrawerDisplay<'_> {
     }
 }
 
-impl HasPos for DrawerDisplay<'_> {
+impl Display for DrawerDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -121,7 +121,7 @@ impl std::fmt::Display for SchedulingDisplay<'_> {
     }
 }
 
-impl HasPos for SchedulingDisplay<'_> {
+impl Display for SchedulingDisplay<'_> {
     fn line(&self) -> usize {
         let pos = match self.inner {
             parser::Scheduling::Scheduled(pos, _, _) => pos,
@@ -137,7 +137,7 @@ pub struct SectionDisplay<'a> {
 
 impl std::fmt::Display for SectionDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut contents: Vec<Box<dyn HasPos>> = vec![];
+        let mut contents: Vec<Box<dyn Display>> = vec![];
 
         for kw in &self.inner.keywords {
             contents.push(Box::new(kw.display()));
@@ -170,7 +170,7 @@ impl std::fmt::Display for SectionDisplay<'_> {
     }
 }
 
-impl HasPos for SectionDisplay<'_> {
+impl Display for SectionDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -182,7 +182,7 @@ pub struct OrgDisplay<'a> {
 
 impl std::fmt::Display for OrgDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut contents: Vec<Box<dyn HasPos>> = vec![];
+        let mut contents: Vec<Box<dyn Display>> = vec![];
 
         for kw in &self.inner.keywords {
             contents.push(Box::new(kw.display()));
