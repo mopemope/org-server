@@ -84,15 +84,27 @@ todo_status = { ^"TODO" | ^"DOING" | ^"DONE" }
 headline_title = { (!(tags|newline) ~ ANY)+ }
 headline = { sp* ~ headline_symbol ~ sp* ~ todo_status* ~ sp* ~ headline_title ~ sp* ~ tags* }
 
-text_block = { (!headline ~ ANY)* }
-content = { text_block }
-section = { headline ~ newline+ ~
+section_text_block = ${
     (
+        !headline ~
+        (
+            !NEWLINE
+            ~ ANY
+        )
+    )*
+}
+section_content = _{ 
+    (section_text_block ~ newline)  
+}
+section_meta = _{
         scheduling ~ newline*
-      | properties ~ newline*
-      | drawer ~ newline*
-      | keyword ~ newline*
-    )* ~ content ~ newline*
+    | properties ~ newline*
+    | drawer ~ newline*
+    | keyword ~ newline*
+}
+section = { 
+    headline ~ newline+ ~
+    (section_meta|section_content)*
 }
 
 org = { properties* ~ newline* ~ drawer* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }

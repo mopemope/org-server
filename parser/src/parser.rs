@@ -378,7 +378,7 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                     }
                 }
             }
-            Rule::content => {
+            Rule::section_text_block => {
                 let mut content: Content = Default::default();
                 let (line, col) = pair.line_col();
                 content.pos = Pos::new(col, line);
@@ -811,15 +811,16 @@ mod tests {
 
         let content = r#"* TEST
 :PROPERTIES:
-:ID:   :value
+:ID:   :value1
 :END:
 
-Content
+ABCDEF
+
 "#;
         let pairs = OrgParser::parse(Rule::section, content).unwrap_or_else(|e| panic!("{}", e));
 
         for pair in pairs {
-            for pair in pair.into_inner() {
+            for (i, pair) in pair.into_inner().enumerate() {
                 match pair.as_rule() {
                     Rule::headline => {
                         for pair in pair.into_inner() {
@@ -831,13 +832,18 @@ Content
                                     assert_eq!("TEST", pair.as_str());
                                 }
                                 _ => {
-                                    println!("!!! {:?}", pair);
+                                    // println!("!!! {:?}", pair);
+                                    todo!()
                                 }
                             }
                         }
                     }
-                    Rule::content => {
-                        assert_eq!("Content\n", pair.as_str());
+                    Rule::section_text_block => {
+                        if i == 2 {
+                            assert_eq!("ABCDEF", pair.as_str());
+                        } else if i == 3 {
+                            assert_eq!("", pair.as_str());
+                        }
                     }
                     Rule::properties => {
                         for pair in pair.into_inner() {
@@ -847,17 +853,17 @@ Content
                                         assert_eq!("ID", pair.as_str());
                                     }
                                     Rule::property_value => {
-                                        assert_eq!(":value", pair.as_str());
+                                        assert_eq!(":value1", pair.as_str());
                                     }
                                     _ => {
-                                        println!("!!! {:?}", pair);
+                                        debug!("!!! {:?}", pair);
                                     }
                                 }
                             }
                         }
                     }
                     _ => {
-                        println!("{:?}", pair);
+                        debug!("! {:?}", pair);
                     }
                 }
             }
@@ -932,7 +938,7 @@ Content2
                             // :END:
                             // Content1
 
-                            for pair in pair.into_inner() {
+                            for (i, pair) in pair.into_inner().enumerate() {
                                 match pair.as_rule() {
                                     Rule::headline => {
                                         for pair in pair.into_inner() {
@@ -949,8 +955,12 @@ Content2
                                             }
                                         }
                                     }
-                                    Rule::content => {
-                                        assert_eq!("Content1\n\n", pair.as_str());
+                                    Rule::section_text_block => {
+                                        if i == 2 {
+                                            assert_eq!("Content1", pair.as_str());
+                                        } else if i == 3 {
+                                            assert_eq!("", pair.as_str());
+                                        }
                                     }
                                     Rule::properties => {
                                         for (i, pair) in pair.into_inner().enumerate() {
@@ -990,7 +1000,7 @@ Content2
                             }
                         }
                         3 => {
-                            for pair in pair.into_inner() {
+                            for (i, pair) in pair.into_inner().enumerate() {
                                 match pair.as_rule() {
                                     Rule::headline => {
                                         for pair in pair.into_inner() {
@@ -1007,8 +1017,12 @@ Content2
                                             }
                                         }
                                     }
-                                    Rule::content => {
-                                        assert_eq!("Content2\n\n", pair.as_str());
+                                    Rule::section_text_block => {
+                                        if i == 2 {
+                                            assert_eq!("Content2", pair.as_str());
+                                        } else if i == 3 {
+                                            assert_eq!("", pair.as_str());
+                                        }
                                     }
                                     Rule::properties => {
                                         for (i, pair) in pair.into_inner().enumerate() {
@@ -1062,7 +1076,7 @@ Content2
         let pairs = OrgParser::parse(Rule::org, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             for pair in pair.into_inner() {
-                println!("{:?}", pair);
+                // debug!("{:?}", pair);
             }
         }
     }
@@ -1090,7 +1104,9 @@ CLOCK: [2024-02-27 Tue 09:56]--[2024-02-27 Tue 17:56] =>  8:00
 :END:
 #+KEYWORD2: title2
 CONTENT1
-CONTENT1
+CONTENT2
+
+* SECTION 2
 
 "#;
 
@@ -1101,10 +1117,9 @@ CONTENT1
 
         assert_eq!(1, org.properties.len());
         assert_eq!(2, org.keywords.len());
-        assert_eq!(1, org.sections.len());
+        assert_eq!(2, org.sections.len());
 
         let sec = org.sections.first().unwrap();
-
         assert_eq!(1, sec.drawers.len());
 
         let rems = org.get_reminders();

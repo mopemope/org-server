@@ -236,13 +236,13 @@ DEADLINE: <2024-12-03 Tue 10:30>
 CLOCK: [2024-02-27 Tue 09:56]--[2024-02-27 Tue 17:56] =>  8:00
 :END:
 #+KEYWORD2: title2
+
 CONTENT1
 CONTENT1
 
 "#;
 
         let mut ctx = Context::new();
-        
         parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e))
     }
 
@@ -251,6 +251,7 @@ CONTENT1
         init();
         let org = get_test_org();
         debug!("{:?}", org.display().to_string());
+        // std::fs::write("/tmp/foo.org", org.display().to_string());
     }
 
     #[test]
