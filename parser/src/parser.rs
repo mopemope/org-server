@@ -1075,7 +1075,7 @@ Content2
 "#;
         let pairs = OrgParser::parse(Rule::org, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
-            for pair in pair.into_inner() {
+            for _pair in pair.into_inner() {
                 // debug!("{:?}", pair);
             }
         }

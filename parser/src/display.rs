@@ -1,5 +1,6 @@
 use crate::parser;
 
+
 pub trait Display: std::fmt::Display {
     fn line(&self) -> usize;
 }
@@ -162,8 +163,27 @@ impl std::fmt::Display for SectionDisplay<'_> {
 
         writeln!(f, "{} {}", self.inner.headline_symbol, self.inner.title)?; // headline
 
+        let mut line = self.line() + 1;
         for c in contents {
-            writeln!(f, "{}", c)?;
+            let start = c.line();
+
+            if line == start {
+                let buf = c.to_string();
+                for s in buf.split('\n') {
+                    writeln!(f, "{}", s)?;
+                    line += 1;
+                }
+            } else {
+                while line != start {
+                    writeln!(f)?;
+                    line += 1;
+                }
+                let buf = c.to_string();
+                for s in buf.split('\n') {
+                    writeln!(f, "{}", s)?;
+                    line += 1;
+                }
+            }
         }
 
         Ok(())
@@ -198,8 +218,26 @@ impl std::fmt::Display for OrgDisplay<'_> {
         }
         contents.sort_by_key(|a| a.line());
 
+        let mut line = 1;
         for c in contents {
-            writeln!(f, "{}", c)?;
+            let start = c.line();
+            if line == start {
+                let buf = c.to_string();
+                for s in buf.split('\n') {
+                    writeln!(f, "{}", s)?;
+                    line += 1;
+                }
+            } else {
+                while line != start {
+                    writeln!(f)?;
+                    line += 1;
+                }
+                let buf = c.to_string();
+                for s in buf.split('\n') {
+                    writeln!(f, "{}", s)?;
+                    line += 1;
+                }
+            }
         }
 
         Ok(())
@@ -238,7 +276,7 @@ CLOCK: [2024-02-27 Tue 09:56]--[2024-02-27 Tue 17:56] =>  8:00
 #+KEYWORD2: title2
 
 CONTENT1
-CONTENT1
+CONTENT2
 
 "#;
 
