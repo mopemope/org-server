@@ -1,6 +1,5 @@
 use crate::parser;
 
-
 pub trait Display: std::fmt::Display {
     fn line(&self) -> usize;
 }
