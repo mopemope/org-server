@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use org_parser::Org;
 use std::path::PathBuf;
 use tracing::debug;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -33,13 +34,16 @@ async fn main() -> Result<()> {
     debug!("load config path: {:?}", config_path);
     let config = config::parse_config(&config_path.to_string_lossy())?;
 
-    let (tx, rx) = tokio::sync::mpsc::channel(1024);
+    let mut senders: Vec<tokio::sync::mpsc::Sender<Org>> = Vec::new();
+    {
+        let (tx, rx) = tokio::sync::mpsc::channel(1024);
+        senders.push(tx.clone());
+        // start checker
+        reminders::start_check(rx).await?;
+        reminders::scan(&config, tx.clone())?;
+    }
 
-    watcher::watch_files(&config, tx.clone())?;
-
-    // start checker
-    reminders::start_check(rx).await?;
-    reminders::scan(&config, tx.clone())?;
+    watcher::watch_files(&config, senders)?;
 
     web::run_server(config.server_port).await?;
     Ok(())

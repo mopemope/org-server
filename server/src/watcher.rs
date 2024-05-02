@@ -9,13 +9,13 @@ use tokio::task;
 use tracing::{debug, error};
 
 pub struct OrgWatcher {
-    org_sender: Sender<Org>,
+    senders: Vec<Sender<Org>>,
 }
 
 //
 impl OrgWatcher {
-    pub fn new(org_sender: Sender<Org>) -> Self {
-        OrgWatcher { org_sender }
+    pub fn new(senders: Vec<Sender<Org>>) -> Self {
+        OrgWatcher { senders }
     }
 
     fn create_watcher(
@@ -85,8 +85,10 @@ impl OrgWatcher {
                 for p in &event.paths {
                     match parse_org_file(p).await {
                         Ok(org) => {
-                            if let Err(err) = self.org_sender.send(org).await {
-                                error!("SendError: {:?}", err);
+                            for sender in &self.senders {
+                                if let Err(err) = sender.send(org.clone()).await {
+                                    error!("SendError: {:?}", err);
+                                }
                             }
                         }
                         Err(err) => {
@@ -102,7 +104,7 @@ impl OrgWatcher {
     }
 }
 
-pub fn watch_files(config: &Config, tx: Sender<Org>) -> Result<()> {
+pub fn watch_files(config: &Config, tx: Vec<Sender<Org>>) -> Result<()> {
     let paths = config.org_path.clone();
     let _forever = task::spawn(async move {
         let watcher = OrgWatcher::new(tx);
