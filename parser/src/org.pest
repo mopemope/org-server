@@ -1,110 +1,102 @@
-sp = _{ " " | "\t" }
+sp      = _{ " " | "\t" }
 newline = _{ "\r\n" | "\r" | "\n" }
 
-active_time_quoted = { "<" ~ active_time_quoted_inner* ~ ">" }
-active_time_quoted_inner = _{
+active_time_quoted           =  { "<" ~ active_time_quoted_inner* ~ ">" }
+active_time_quoted_inner     = _{
     literal_active_time_quoted
 }
-literal_active_time_quoted = ${
-    (
-        !("<" | ">") ~ ANY
-      | sp
-    )+
+literal_active_time_quoted   = ${
+    (!("<" | ">") ~ ANY | sp)+
 }
-inactive_time_quoted = { "[" ~ inactive_time_quoted_inner* ~ "]" }
-inactive_time_quoted_inner = _{
+inactive_time_quoted         =  { "[" ~ inactive_time_quoted_inner* ~ "]" }
+inactive_time_quoted_inner   = _{
     literal_inactive_time_quoted
 }
 literal_inactive_time_quoted = ${
-    (
-        !("[" | "]") ~ ANY
-      | sp
-    )+
+    (!("[" | "]") ~ ANY | sp)+
 }
 
-scheduled = { ^"SCHEDULED:" ~ sp* ~ (active_time_quoted) }
-deadline = { ^"DEADLINE:" ~ sp* ~ (active_time_quoted) }
+literal_link = ${
+    (!("[" | "]") ~ ANY | sp)+
+}
+
+link_inner = _{
+    literal_link
+}
+
+link_description = { "[" ~ link_inner* ~ "]" }
+link             = { "[" ~ link_inner* ~ "]" }
+hyperlink        = { "[" ~ link ~ link_description{0, 1} ~ "]" }
+
+scheduled  = { ^"SCHEDULED:" ~ sp* ~ (active_time_quoted) }
+deadline   = { ^"DEADLINE:" ~ sp* ~ (active_time_quoted) }
 scheduling = { scheduled | deadline }
 
-drawer_sep  = _{":"}
+drawer_sep     = _{ ":" }
 property_start = _{ drawer_sep ~ ^"PROPERTIES" ~ drawer_sep }
-property_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
-property_key = { (!drawer_sep ~ ANY)+ }
-property_k = _{ drawer_sep ~ property_key ~ drawer_sep}
-property_value = {
-    (
-        active_time_quoted
-      | inactive_time_quoted
-      |!(sp | newline ) ~ ANY
-    )+
+property_end   = _{ drawer_sep ~ ^"END" ~ drawer_sep }
+property_key   =  { (!drawer_sep ~ ANY)+ }
+property_k     = _{ drawer_sep ~ property_key ~ drawer_sep }
+property_value =  {
+    (active_time_quoted | inactive_time_quoted | !(sp | newline) ~ ANY)+
 }
-property = { property_k ~ sp* ~ property_value ~ sp* }
-properties = { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline*  }
+property       =  { property_k ~ sp* ~ property_value ~ sp* }
+properties     =  { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline* }
 
-drawer_name = { ASCII_ALPHANUMERIC+ }
-drawer_start = _{ drawer_sep ~ drawer_name ~ drawer_sep }
-drawer_end = _{ drawer_sep ~ ^"END" ~ drawer_sep }
-drawer_content = {
-    (
-        !(^":end:" | NEWLINE)
-        ~ ANY
-    )+
+drawer_name     =  { ASCII_ALPHANUMERIC+ }
+drawer_start    = _{ drawer_sep ~ drawer_name ~ drawer_sep }
+drawer_end      = _{ drawer_sep ~ ^"END" ~ drawer_sep }
+drawer_content  =  {
+    (!(^":end:" | NEWLINE) ~ ANY)+
 }
 drawer_contents = ${
-    (
-        sp* ~ active_time_quoted ~ sp*
-      | sp* ~ inactive_time_quoted ~ sp*
-      | drawer_content
-    )+
+    (sp* ~ active_time_quoted ~ sp* | sp* ~ inactive_time_quoted ~ sp* | drawer_content)+
 }
-drawer = {
-    (drawer_start ~ sp* ~ newline+) ~
-    (drawer_contents ~ newline+)* ~
-    (drawer_end ~ sp* ~ newline*)
+drawer          =  {
+    (drawer_start ~ sp* ~ newline+) ~ (drawer_contents ~ newline+)* ~ (drawer_end ~ sp* ~ newline*)
 }
 // drawer = { drawer_start ~ sp* ~ newline+ ~ (drawer_content ~ newline)* ~ drawer_end ~ sp* ~ newline  }
 
 keyword_start = _{ "#+" }
-block_start = { keyword_start ~ ^"BEGIN" }
-block_end = { keyword_start ~ ^"END" }
+block_start   =  { keyword_start ~ ^"BEGIN" }
+block_end     =  { keyword_start ~ ^"END" }
 
-keyword_key = { (!(keyword_start | drawer_sep) ~ ANY)+ }
-keyword_k = _{ keyword_start ~ keyword_key ~ drawer_sep }
-keyword_value = { (!(newline) ~ ANY)* }
-keyword = { keyword_k ~ sp* ~ keyword_value ~ sp* }
+keyword_key   =  { (!(keyword_start | drawer_sep) ~ ANY)+ }
+keyword_k     = _{ keyword_start ~ keyword_key ~ drawer_sep }
+keyword_value =  { (!(newline) ~ ANY)* }
+keyword       =  { keyword_k ~ sp* ~ keyword_value ~ sp* }
 
-tags = { ":" ~ tag_inner+ ~ ":" }
-tag_inner = _{ tag ~ (":" ~ tag)*  }
-tag = ${
+tags      =  { ":" ~ tag_inner+ ~ ":" }
+tag_inner = _{ tag ~ (":" ~ tag)* }
+tag       = ${
     (!(":") ~ ANY)+
 }
 
 headline_symbol = { "*"+ }
-todo_status = { ^"TODO" | ^"DOING" | ^"DONE" }
-headline_title = { (!(tags|newline) ~ ANY)+ }
-headline = { sp* ~ headline_symbol ~ sp* ~ todo_status* ~ sp* ~ headline_title ~ sp* ~ tags* }
+todo_status     = { ^"TODO" | ^"DOING" | ^"DONE" }
+headline_title  = { (!(tags | newline) ~ ANY)+ }
+headline        = { sp* ~ headline_symbol ~ sp* ~ todo_status* ~ sp* ~ headline_title ~ sp* ~ tags* }
+
+section_text = { !headline ~ (!NEWLINE ~ ANY)+ }
+section_link = { !headline ~ (!NEWLINE ~ hyperlink) }
 
 section_text_block = ${
-    (
-        !headline ~
-        (
-            !NEWLINE
-            ~ ANY
-        )
-    )*
+    (section_link | section_text)* // (!headline ~ (!NEWLINE ~ (hyperlink|ANY)))*
+  // (!headline ~ (!NEWLINE ~ (ANY) ))*
 }
-section_content = _{ 
-    (section_text_block ~ newline)  
+
+section_content = _{
+    (section_text_block ~ newline)
 }
+
 section_meta = _{
-        scheduling ~ newline*
-    | properties ~ newline*
-    | drawer ~ newline*
-    | keyword ~ newline*
+    scheduling ~ newline*
+  | properties ~ newline*
+  | drawer ~ newline*
+  | keyword ~ newline*
 }
-section = { 
-    headline ~ newline+ ~
-    (section_meta|section_content)*
+section      =  {
+    headline ~ newline+ ~ (section_meta | section_content)*
 }
 
 org = { properties* ~ newline* ~ drawer* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }
