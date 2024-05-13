@@ -122,7 +122,7 @@ impl Property {
 pub struct Drawer {
     pub pos: Pos,
     pub name: String,
-    pub children: Vec<Content>,
+    pub children: Vec<Row>,
 }
 
 impl Drawer {
@@ -131,15 +131,50 @@ impl Drawer {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Eq)]
+pub enum Content {
+    Text(Pos, String),
+    Hyperlink(Pos, String, Option<String>),
+}
+
+impl PartialEq for Content {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Content::Text(_, a), Content::Text(_, b)) => a == b,
+            (Content::Hyperlink(_, link1, a), Content::Hyperlink(_, link2, b)) => {
+                link1 == link2 && a == b
+            }
+            _ => false,
+        }
+    }
+}
+
+impl Hash for Content {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Content::Text(_, text) => {
+                state.write(&[1]);
+                state.write(text.as_bytes());
+                text.hash(state);
+            }
+            Content::Hyperlink(_, link, desc) => {
+                state.write(&[2]);
+                state.write(link.as_bytes());
+                desc.hash(state);
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Content {
+pub struct Row {
     pub pos: Pos,
     pub contents: String,
 }
 
-impl Content {
-    pub fn display(&self) -> display::ContentDisplay<'_> {
-        display::ContentDisplay { inner: self }
+impl Row {
+    pub fn display(&self) -> display::RowDisplay<'_> {
+        display::RowDisplay { inner: self }
     }
 }
 
@@ -152,7 +187,7 @@ pub struct Section {
     pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
     pub keywords: Vec<Keyword>,
-    pub contents: Vec<Content>,
+    pub contents: Vec<Row>,
     pub sections: Vec<Section>,
     pub scheduling: Vec<Scheduling>,
 }
@@ -261,7 +296,7 @@ fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
                 for pair in pair.into_inner() {
                     match pair.as_rule() {
                         Rule::drawer_content => {
-                            let mut content: Content = Default::default();
+                            let mut content: Row = Default::default();
                             let (line, col) = pair.line_col();
                             content.pos = Pos::new(col, line);
                             content.contents = pair.as_str().to_string();
@@ -330,7 +365,7 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 let props = parse_properties(ctx, pair);
                 for prop in &props.children {
                     if prop.key.to_lowercase() == "id" {
-                        section.id = prop.value.clone();
+                        section.id.clone_from(&prop.value);
                     }
                 }
                 section.properties.push(props);
@@ -379,7 +414,7 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 }
             }
             Rule::section_text_block => {
-                let mut content: Content = Default::default();
+                let mut content: Row = Default::default();
                 let (line, col) = pair.line_col();
                 content.pos = Pos::new(col, line);
                 content.contents = pair.as_str().to_string();

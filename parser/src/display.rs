@@ -62,18 +62,18 @@ impl Display for KeywordDisplay<'_> {
     }
 }
 
-pub struct ContentDisplay<'a> {
-    pub inner: &'a parser::Content,
+pub struct RowDisplay<'a> {
+    pub inner: &'a parser::Row,
 }
 
-impl std::fmt::Display for ContentDisplay<'_> {
+impl std::fmt::Display for RowDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.inner.contents)?;
         Ok(())
     }
 }
 
-impl Display for ContentDisplay<'_> {
+impl Display for RowDisplay<'_> {
     fn line(&self) -> usize {
         self.inner.pos.line
     }
@@ -85,7 +85,7 @@ pub struct DrawerDisplay<'a> {
 
 impl std::fmt::Display for DrawerDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut contents: Vec<ContentDisplay> =
+        let mut contents: Vec<RowDisplay> =
             self.inner.children.iter().map(|p| p.display()).collect();
         contents.sort_by_key(|a| a.line());
 

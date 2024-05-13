@@ -1,10 +1,10 @@
-use crate::parser::{Content, Drawer, Keyword, Properties, Property, Scheduling, Section};
+use crate::parser::{Drawer, Keyword, Properties, Property, Row, Scheduling, Section};
 
 pub trait Movable {
     fn move_point(&mut self, col: isize, line: isize);
 }
 
-impl Movable for Content {
+impl Movable for Row {
     fn move_point(&mut self, col: isize, line: isize) {
         self.pos.col = self.pos.col.saturating_add_signed(col);
         self.pos.line = self.pos.col.saturating_add_signed(line);
