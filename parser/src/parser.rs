@@ -169,7 +169,7 @@ impl Hash for Content {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Row {
     pub pos: Pos,
-    pub contents: String,
+    pub contents: Vec<Content>,
 }
 
 impl Row {
@@ -294,15 +294,16 @@ fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
             }
             Rule::drawer_contents => {
                 for pair in pair.into_inner() {
-                    match pair.as_rule() {
-                        Rule::drawer_content => {
-                            let mut content: Row = Default::default();
-                            let (line, col) = pair.line_col();
-                            content.pos = Pos::new(col, line);
-                            content.contents = pair.as_str().to_string();
-                            drawer.children.push(content);
-                        }
-                        _ => {}
+                    if pair.as_rule() == Rule::drawer_content {
+                        let mut row: Row = Default::default();
+                        let (line, col) = pair.line_col();
+                        row.pos = Pos::new(col, line);
+                        // TODO text only ?
+                        row.contents.push(Content::Text(
+                            Pos::new(col, line),
+                            pair.as_str().to_string(),
+                        ));
+                        drawer.children.push(row);
                     }
                 }
             }
@@ -414,11 +415,35 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 }
             }
             Rule::section_text_block => {
-                let mut content: Row = Default::default();
+                let mut row: Row = Default::default();
                 let (line, col) = pair.line_col();
-                content.pos = Pos::new(col, line);
-                content.contents = pair.as_str().to_string();
-                section.contents.push(content);
+                row.pos = Pos::new(col, line);
+                for pair in pair.into_inner() {
+                    let (line, col) = pair.line_col();
+                    let pos = Pos::new(col, line);
+                    match pair.as_rule() {
+                        Rule::section_text => {
+                            let text = Content::Text(pos, pair.as_str().to_owned());
+                            row.contents.push(text);
+                        }
+                        Rule::section_link => {
+                            if let Some(pair) = pair.into_inner().next() {
+                                let mut pairs = pair.into_inner();
+                                if let Some(link) = pairs.next() {
+                                    let description = pairs.next().map(|p| p.as_str().to_string());
+                                    let hyperlink = Content::Hyperlink(
+                                        pos,
+                                        link.as_str().to_string(),
+                                        description,
+                                    );
+                                    row.contents.push(hyperlink);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                section.contents.push(row);
             }
             Rule::section => {
                 let sec = parse_section(ctx, pair);
@@ -1096,6 +1121,23 @@ Content2
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_parse_hyperlink() {
+        init();
+
+        let content = r#"
+
+* Section
+TEST1
+[[https://example.com]] TEST2
+[[https://example.com][Dectription]] TEST3
+TEST4
+"#;
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
     }
 
     #[test]

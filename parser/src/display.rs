@@ -68,7 +68,9 @@ pub struct RowDisplay<'a> {
 
 impl std::fmt::Display for RowDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.inner.contents)?;
+        for c in &self.inner.contents {
+            // write!(f, "{}", c)?;
+        }
         Ok(())
     }
 }
