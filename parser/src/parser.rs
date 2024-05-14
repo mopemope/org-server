@@ -137,6 +137,12 @@ pub enum Content {
     Hyperlink(Pos, String, Option<String>),
 }
 
+impl Content {
+    pub fn display(&self) -> display::ContentDisplay<'_> {
+        display::ContentDisplay { inner: self }
+    }
+}
+
 impl PartialEq for Content {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

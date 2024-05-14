@@ -62,6 +62,37 @@ impl Display for KeywordDisplay<'_> {
     }
 }
 
+pub struct ContentDisplay<'a> {
+    pub inner: &'a parser::Content,
+}
+
+impl std::fmt::Display for ContentDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let str = match self.inner {
+            parser::Content::Text(_, text) => text.to_owned(),
+            parser::Content::Hyperlink(_, link, desc) => {
+                if let Some(desc) = desc {
+                    format!("[[{}][{}]]", link, desc)
+                } else {
+                    format!("[[{}]]", link)
+                }
+            }
+        };
+        write!(f, "{}", str)?;
+        Ok(())
+    }
+}
+
+impl Display for ContentDisplay<'_> {
+    fn line(&self) -> usize {
+        let pos = match self.inner {
+            parser::Content::Text(pos, _) => pos,
+            parser::Content::Hyperlink(pos, _, _) => pos,
+        };
+        pos.line
+    }
+}
+
 pub struct RowDisplay<'a> {
     pub inner: &'a parser::Row,
 }
@@ -69,7 +100,7 @@ pub struct RowDisplay<'a> {
 impl std::fmt::Display for RowDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for c in &self.inner.contents {
-            // write!(f, "{}", c)?;
+            write!(f, "{}", c.display())?;
         }
         Ok(())
     }
