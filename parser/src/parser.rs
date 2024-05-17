@@ -57,6 +57,17 @@ impl Org {
         res
     }
 
+    pub fn get_hyperlinks(&self) -> Vec<(String, Option<String>)> {
+        let mut res = vec![];
+        for sec in &self.sections {
+            let mut links = sec.get_hyperlinks();
+            if !links.is_empty() {
+                res.append(&mut links)
+            }
+        }
+        res
+    }
+
     pub fn display(&self) -> display::OrgDisplay<'_> {
         display::OrgDisplay { inner: self }
     }
@@ -199,6 +210,18 @@ pub struct Section {
 }
 
 impl Section {
+    pub fn get_hyperlinks(&self) -> Vec<(String, Option<String>)> {
+        let mut res = vec![];
+        for row in &self.contents {
+            for content in &row.contents {
+                if let Content::Hyperlink(_, link, desc) = content {
+                    res.push((link.to_owned(), desc.clone()));
+                }
+            }
+        }
+        res
+    }
+
     pub fn display(&self) -> display::SectionDisplay<'_> {
         display::SectionDisplay { inner: self }
     }
@@ -1223,6 +1246,8 @@ CONTENT2
         let _sec = &org.sections[1];
         // debug!("{:?}", org);
         // debug!("{:?}", &sec.contents);
+        let links = org.get_hyperlinks();
+        debug!("{:?}", links);
 
         let result = serde_json::to_string(&org)?;
         debug!("{:?}", result);

@@ -30,3 +30,9 @@ $ test
 :LOGBOOK:
 CLOCK: [2024-03-01 Fri 09:31]--[2024-03-01 Fri 10:31] =>  1:00
 :END:
+
+* Clip
+
+** テスト
+[[https://www.rust-lang.org/][Rust]]
+[[https://github.com][GitHub]]
