@@ -46,10 +46,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn check_reminder(
-    config: &config::Config,
-    senders: &mut Vec<mpsc::Sender<Org>>,
-) -> Result<()> {
+fn check_reminder(config: &config::Config, senders: &mut Vec<mpsc::Sender<Org>>) -> Result<()> {
     let (tx, rx) = mpsc::channel(1024);
     senders.push(tx.clone());
     // start reminder checker

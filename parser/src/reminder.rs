@@ -60,7 +60,11 @@ pub fn get_reminders_with_config(sec: &Section, config: &ReminderConfig) -> Vec<
     res
 }
 
-fn create_reminder_with_config(dt: NaiveDateTime, sch: &Scheduling, config: &ReminderConfig) -> Vec<Reminder> {
+fn create_reminder_with_config(
+    dt: NaiveDateTime,
+    sch: &Scheduling,
+    config: &ReminderConfig,
+) -> Vec<Reminder> {
     let mut vec = vec![];
 
     for &interval_minutes in &config.intervals_minutes {
@@ -72,7 +76,10 @@ fn create_reminder_with_config(dt: NaiveDateTime, sch: &Scheduling, config: &Rem
                     if remaining_minutes == 0 {
                         format!("このイベント終了まであと{}時間: {}", hours, title)
                     } else {
-                        format!("このイベント終了まであと{}時間{}分: {}", hours, remaining_minutes, title)
+                        format!(
+                            "このイベント終了まであと{}時間{}分: {}",
+                            hours, remaining_minutes, title
+                        )
                     }
                 } else {
                     format!("このイベント終了まであと{}分: {}", interval_minutes, title)
@@ -85,7 +92,10 @@ fn create_reminder_with_config(dt: NaiveDateTime, sch: &Scheduling, config: &Rem
                     if remaining_minutes == 0 {
                         format!("このイベント開始まであと{}時間: {}", hours, title)
                     } else {
-                        format!("このイベント開始まであと{}時間{}分: {}", hours, remaining_minutes, title)
+                        format!(
+                            "このイベント開始まであと{}時間{}分: {}",
+                            hours, remaining_minutes, title
+                        )
                     }
                 } else {
                     format!("このイベント開始まであと{}分: {}", interval_minutes, title)
@@ -104,7 +114,10 @@ fn create_reminder_with_config(dt: NaiveDateTime, sch: &Scheduling, config: &Rem
     vec
 }
 
-fn convert_reminder_with_config(sch: &Scheduling, config: &ReminderConfig) -> Option<Vec<Reminder>> {
+fn convert_reminder_with_config(
+    sch: &Scheduling,
+    config: &ReminderConfig,
+) -> Option<Vec<Reminder>> {
     let now = Local::now().naive_local();
     match sch {
         Scheduling::Scheduled(_, _title, ref datetime) => {
@@ -148,8 +161,8 @@ fn convert_reminder(sch: &Scheduling) -> Option<Vec<Reminder>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::Pos;
     use super::*;
+    use crate::parser::Pos;
     use tracing::debug;
 
     fn init() {
@@ -183,7 +196,7 @@ mod tests {
         let config = ReminderConfig {
             intervals_minutes: vec![60, 30, 5], // 1時間前、30分前、5分前
         };
-        
+
         let pos = Pos::new(0, 0);
         let rem = convert_reminder_with_config(
             &Scheduling::Scheduled(
@@ -193,7 +206,7 @@ mod tests {
             ),
             &config,
         );
-        
+
         if let Some(reminders) = rem {
             assert_eq!(reminders.len(), 3);
             assert!(reminders[0].title.contains("1時間"));

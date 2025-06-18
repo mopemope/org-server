@@ -494,9 +494,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
 }
 
 /// Parse org-mode content into an Org structure
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the content cannot be parsed according to org-mode syntax rules
 pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
     let mut org = Org::default();

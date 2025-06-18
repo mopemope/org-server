@@ -38,7 +38,7 @@ async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
 
 pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
     let mut handles = Vec::new();
-    
+
     for p in &config.org_path {
         let p = p.clone();
         let tx = tx.clone();
@@ -49,7 +49,7 @@ pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
         });
         handles.push(handle);
     }
-    
+
     // バックグラウンドでタスクの完了を待つ
     task::spawn(async move {
         for handle in handles {

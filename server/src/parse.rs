@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
-use tokio::io::AsyncReadExt;
 use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 
 pub async fn parse_org_file(path: &Path) -> Result<org_parser::Org> {
     let mut file = File::open(path).await?;

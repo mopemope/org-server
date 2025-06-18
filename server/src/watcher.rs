@@ -17,7 +17,8 @@ impl OrgWatcher {
         OrgWatcher { senders }
     }
 
-    fn create_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
+    fn create_watcher(
+    ) -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)
