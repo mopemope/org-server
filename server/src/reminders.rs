@@ -36,20 +36,31 @@ async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
     Ok(())
 }
 
-pub fn scan(config: &Config, tx: mpsc::Sender<Org>) -> Result<()> {
+pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
+    let mut handles = Vec::new();
+    
     for p in &config.org_path {
         let p = p.clone();
         let tx = tx.clone();
-        let _ = task::spawn(async move {
+        let handle = task::spawn(async move {
             if let Err(err) = scan_reminders(&p, tx).await {
                 error!("ParseError {:?}", err);
             }
         });
+        handles.push(handle);
     }
-    Ok(())
+    
+    // バックグラウンドでタスクの完了を待つ
+    task::spawn(async move {
+        for handle in handles {
+            if let Err(err) = handle.await {
+                error!("Task join error: {:?}", err);
+            }
+        }
+    });
 }
 
-pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
+pub fn start_check(mut rx: mpsc::Receiver<Org>) {
     let _forever = task::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(5));
         let mut reminders: HashSet<Reminder> = HashSet::new();
@@ -92,5 +103,4 @@ pub async fn start_check(mut rx: mpsc::Receiver<Org>) -> Result<()> {
             }
         }
     });
-    Ok(())
 }

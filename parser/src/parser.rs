@@ -17,6 +17,7 @@ pub struct OrgParser;
 pub struct Context {} // TODO add attr
 
 impl Context {
+    #[must_use]
     pub fn new() -> Self {
         Context {}
     }
@@ -34,6 +35,7 @@ pub struct Org {
 }
 
 impl Org {
+    #[must_use]
     pub fn new() -> Self {
         Org {
             filename: None,
@@ -46,28 +48,31 @@ impl Org {
         }
     }
 
+    #[must_use]
     pub fn get_reminders(&self) -> Vec<Reminder> {
         let mut res = vec![];
         for sec in &self.sections {
             let mut reminders = get_reminders(sec);
             if !reminders.is_empty() {
-                res.append(&mut reminders)
+                res.append(&mut reminders);
             }
         }
         res
     }
 
+    #[must_use]
     pub fn get_hyperlinks(&self) -> Vec<(String, Option<String>)> {
         let mut res = vec![];
         for sec in &self.sections {
             let mut links = sec.get_hyperlinks();
             if !links.is_empty() {
-                res.append(&mut links)
+                res.append(&mut links);
             }
         }
         res
     }
 
+    #[must_use]
     pub fn display(&self) -> display::OrgDisplay<'_> {
         display::OrgDisplay { inner: self }
     }
@@ -363,6 +368,7 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
     kw
 }
 
+#[allow(clippy::too_many_lines)]
 fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     let mut section: Section = Default::default();
     let (line, col) = pair.line_col();
@@ -487,6 +493,11 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     section
 }
 
+/// Parse org-mode content into an Org structure
+/// 
+/// # Errors
+/// 
+/// Returns an error if the content cannot be parsed according to org-mode syntax rules
 pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
     let mut org = Org::default();
     let mut pairs = OrgParser::parse(Rule::org, content)?;
@@ -1166,7 +1177,7 @@ TEST4
 "#;
 
         let mut ctx = Context::new();
-        let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
+        let _org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
     }
 
     #[test]
@@ -1198,8 +1209,8 @@ TEST4
 #+STARTUP: overview
 
 * SECTION 1
-SCHEDULED: <2024-12-03 Tue 12:34>
-DEADLINE: <2024-12-03 Tue 10:30>
+SCHEDULED: <2025-12-03 Wed 12:34>
+DEADLINE: <2025-12-03 Wed 10:30>
 #+KEYWORD1: title1
 :PROPERTIES:
 :ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c

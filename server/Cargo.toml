@@ -10,23 +10,11 @@ name = "org-server"
 [dependencies]
 org-parser = { path = "../parser" }
 anyhow.workspace = true
-anyhow.version = "1"
-anyhow.default-features = false
 tracing.workspace = true
-tracing.version = "0.1"
-tracing.default-features = false
 tracing-subscriber.workspace = true
-tracing-subscriber.version = "0.3"
-tracing-subscriber.default-features = false
 serde.workspace = true
-serde.version = "1.0"
-serde.default-features = false
 serde_json.workspace = true
-serde_json.version = "1"
-serde_json.default-features = false
 chrono.workspace = true
-chrono.version = "0.4"
-chrono.default-features = false
 axum = { version = "0.8", features = ["http1", "tokio"], default-features = false }
 tokio = { version = "1.0", features = ["fs", "io-util", "rt-multi-thread"] }
 clap = { version = "4", features = ["derive", "std"], default-features = false }

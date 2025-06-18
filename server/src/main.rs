@@ -38,23 +38,23 @@ async fn main() -> Result<()> {
     let mut senders: Vec<mpsc::Sender<Org>> = Vec::new();
 
     // reminder
-    check_reminder(&config, &mut senders).await?;
+    check_reminder(&config, &mut senders)?;
 
-    watcher::watch_files(&config, senders)?;
+    watcher::watch_files(&config, senders);
 
     web::run_server(config.server_port).await?;
     Ok(())
 }
 
-async fn check_reminder(
+fn check_reminder(
     config: &config::Config,
     senders: &mut Vec<mpsc::Sender<Org>>,
 ) -> Result<()> {
     let (tx, rx) = mpsc::channel(1024);
     senders.push(tx.clone());
     // start reminder checker
-    reminders::start_check(rx).await?;
-    reminders::scan(config, tx.clone())?;
+    reminders::start_check(rx);
+    reminders::scan(config, &tx);
     Ok(())
 }
 

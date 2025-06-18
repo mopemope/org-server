@@ -23,15 +23,36 @@ impl Hash for Reminder {
     }
 }
 
+/// デフォルトのリマインダー間隔（分）
+pub const DEFAULT_REMINDER_INTERVALS: &[u32] = &[30, 10, 1];
+
+/// カスタマイズ可能なリマインダー設定
+#[derive(Clone, Debug)]
+pub struct ReminderConfig {
+    pub intervals_minutes: Vec<u32>,
+}
+
+impl Default for ReminderConfig {
+    fn default() -> Self {
+        Self {
+            intervals_minutes: DEFAULT_REMINDER_INTERVALS.to_vec(),
+        }
+    }
+}
+
 pub fn get_reminders(sec: &Section) -> Vec<Reminder> {
+    get_reminders_with_config(sec, &ReminderConfig::default())
+}
+
+pub fn get_reminders_with_config(sec: &Section, config: &ReminderConfig) -> Vec<Reminder> {
     let mut res = vec![];
     for sch in &sec.scheduling {
-        if let Some(mut reminders) = convert_reminder(sch) {
+        if let Some(mut reminders) = convert_reminder_with_config(sch, config) {
             res.append(&mut reminders);
         }
     }
     for sec in &sec.sections {
-        let mut reminders = get_reminders(sec);
+        let mut reminders = get_reminders_with_config(sec, config);
         if !reminders.is_empty() {
             res.append(&mut reminders);
         }
@@ -39,100 +60,95 @@ pub fn get_reminders(sec: &Section) -> Vec<Reminder> {
     res
 }
 
-fn create_reminder(dt: NaiveDateTime, sch: &Scheduling) -> Vec<Reminder> {
+fn create_reminder_with_config(dt: NaiveDateTime, sch: &Scheduling, config: &ReminderConfig) -> Vec<Reminder> {
     let mut vec = vec![];
 
-    let (t30, t10, t1) = match sch {
-        Scheduling::Deadline(_, title, _) => (
-            format!("このイベント終了まであと30分: {}", title),
-            format!("このイベント終了 まであと10分: {}", title),
-            format!("このイベント終了まであと1分: {}", title),
-        ),
-        Scheduling::Scheduled(_, title, _) => (
-            format!("このイベント開始まであと30分: {}", title),
-            format!("このイベント開始まであと10分: {}", title),
-            format!("このイベント開始まであと1分: {}", title),
-        ),
-    };
-    let rem = Reminder {
-        title: t30,
-        datetime: dt - Duration::from_secs(60 * 30),
-        scheduling: sch.clone(),
-    };
-    vec.push(rem);
+    for &interval_minutes in &config.intervals_minutes {
+        let title = match sch {
+            Scheduling::Deadline(_, title, _) => {
+                if interval_minutes >= 60 {
+                    let hours = interval_minutes / 60;
+                    let remaining_minutes = interval_minutes % 60;
+                    if remaining_minutes == 0 {
+                        format!("このイベント終了まであと{}時間: {}", hours, title)
+                    } else {
+                        format!("このイベント終了まであと{}時間{}分: {}", hours, remaining_minutes, title)
+                    }
+                } else {
+                    format!("このイベント終了まであと{}分: {}", interval_minutes, title)
+                }
+            }
+            Scheduling::Scheduled(_, title, _) => {
+                if interval_minutes >= 60 {
+                    let hours = interval_minutes / 60;
+                    let remaining_minutes = interval_minutes % 60;
+                    if remaining_minutes == 0 {
+                        format!("このイベント開始まであと{}時間: {}", hours, title)
+                    } else {
+                        format!("このイベント開始まであと{}時間{}分: {}", hours, remaining_minutes, title)
+                    }
+                } else {
+                    format!("このイベント開始まであと{}分: {}", interval_minutes, title)
+                }
+            }
+        };
 
-    let rem = Reminder {
-        title: t10,
-        datetime: dt - Duration::from_secs(60 * 10),
-        scheduling: sch.clone(),
-    };
-    vec.push(rem);
-
-    let rem = Reminder {
-        title: t1,
-        datetime: dt - Duration::from_secs(60),
-        scheduling: sch.clone(),
-    };
-    vec.push(rem);
+        let reminder_datetime = dt - Duration::from_secs(60 * interval_minutes as u64);
+        let rem = Reminder {
+            title,
+            datetime: reminder_datetime,
+            scheduling: sch.clone(),
+        };
+        vec.push(rem);
+    }
     vec
 }
 
-// TODO refactor
-fn convert_reminder(sch: &Scheduling) -> Option<Vec<Reminder>> {
+fn convert_reminder_with_config(sch: &Scheduling, config: &ReminderConfig) -> Option<Vec<Reminder>> {
     let now = Local::now().naive_local();
     match sch {
         Scheduling::Scheduled(_, _title, ref datetime) => {
-            let dt = NaiveDateTime::parse_from_str(datetime, "%F %a %R");
-
-            if let Ok(dt) = dt {
-                if dt > now {
-                    Some(create_reminder(dt, sch))
-                } else {
-                    None
-                }
-            } else {
-                let datetime = format!("{} 09:00", &datetime);
-                let dt = NaiveDateTime::parse_from_str(&datetime, "%F %a %R");
-                if let Ok(dt) = dt {
-                    if dt > now {
-                        Some(create_reminder(dt, sch))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
+            parse_datetime_and_create_reminder(datetime, sch, config, now)
         }
         Scheduling::Deadline(_, _title, ref datetime) => {
-            let dt = NaiveDateTime::parse_from_str(datetime, "%F %a %R");
-            if let Ok(dt) = dt {
-                if dt > now {
-                    Some(create_reminder(dt, sch))
-                } else {
-                    None
-                }
-            } else {
-                let datetime = format!("{} 09:00", &datetime);
-                let dt = NaiveDateTime::parse_from_str(&datetime, "%F %a %R");
-                if let Ok(dt) = dt {
-                    if dt > now {
-                        Some(create_reminder(dt, sch))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
+            parse_datetime_and_create_reminder(datetime, sch, config, now)
         }
     }
+}
+
+fn parse_datetime_and_create_reminder(
+    datetime: &str,
+    sch: &Scheduling,
+    config: &ReminderConfig,
+    now: NaiveDateTime,
+) -> Option<Vec<Reminder>> {
+    // まず時刻付きの形式を試す
+    if let Ok(dt) = NaiveDateTime::parse_from_str(datetime, "%F %a %R") {
+        if dt > now {
+            return Some(create_reminder_with_config(dt, sch, config));
+        }
+    }
+
+    // 時刻なしの場合はデフォルト時刻（09:00）を追加
+    let datetime_with_time = format!("{} 09:00", datetime);
+    if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime_with_time, "%F %a %R") {
+        if dt > now {
+            return Some(create_reminder_with_config(dt, sch, config));
+        }
+    }
+
+    None
+}
+
+// 後方互換性のための関数（テスト用）
+#[cfg(test)]
+fn convert_reminder(sch: &Scheduling) -> Option<Vec<Reminder>> {
+    convert_reminder_with_config(sch, &ReminderConfig::default())
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parser::Pos;
-
     use super::*;
     use tracing::debug;
 
@@ -142,13 +158,13 @@ mod tests {
 
     #[test]
     fn test_convert_reminder() {
-        // SCHEDULED: <2024-03-04 Mon 10:00>
+        // SCHEDULED: <2025-03-04 Tue 10:00>
         init();
         let pos = Pos::new(0, 0);
         let rem = convert_reminder(&Scheduling::Scheduled(
             pos,
             "title".to_string(),
-            "2024-03-04 Mon 13:00".to_string(),
+            "2025-03-04 Tue 13:00".to_string(),
         ));
         debug!("{:?}", rem);
 
@@ -156,8 +172,33 @@ mod tests {
         let rem = convert_reminder(&Scheduling::Scheduled(
             pos,
             "title".to_string(),
-            "2024-03-04 Mon".to_string(),
+            "2025-03-04 Tue".to_string(),
         ));
         debug!("{:?}", rem);
+    }
+
+    #[test]
+    fn test_custom_reminder_config() {
+        init();
+        let config = ReminderConfig {
+            intervals_minutes: vec![60, 30, 5], // 1時間前、30分前、5分前
+        };
+        
+        let pos = Pos::new(0, 0);
+        let rem = convert_reminder_with_config(
+            &Scheduling::Scheduled(
+                pos,
+                "重要な会議".to_string(),
+                "2025-12-25 Thu 14:00".to_string(),
+            ),
+            &config,
+        );
+        
+        if let Some(reminders) = rem {
+            assert_eq!(reminders.len(), 3);
+            assert!(reminders[0].title.contains("1時間"));
+            assert!(reminders[1].title.contains("30分"));
+            assert!(reminders[2].title.contains("5分"));
+        }
     }
 }

@@ -1,5 +1,4 @@
 use crate::{config::Config, parse::parse_org_file};
-use anyhow::Result;
 use notify::event::EventKind;
 use notify::{RecommendedWatcher, Watcher};
 use org_parser::Org;
@@ -18,9 +17,7 @@ impl OrgWatcher {
         OrgWatcher { senders }
     }
 
-    fn create_watcher(
-        &self,
-    ) -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
+    fn create_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)
@@ -32,7 +29,7 @@ impl OrgWatcher {
             move |res| {
                 runtime.block_on(async {
                     tx.send(res).await.unwrap();
-                })
+                });
             },
             notify::Config::default(),
         )?;
@@ -40,7 +37,7 @@ impl OrgWatcher {
     }
 
     async fn watch_file(self, paths: Vec<String>) -> notify::Result<()> {
-        let (mut watcher, mut rx) = self.create_watcher()?;
+        let (mut watcher, mut rx) = Self::create_watcher()?;
         debug!("create watcher");
 
         for path in paths {
@@ -78,10 +75,7 @@ impl OrgWatcher {
 
     async fn notify(&self, event: &notify::Event) {
         match event.kind {
-            EventKind::Create(_) => {
-                //
-            }
-            EventKind::Modify(_data) => {
+            EventKind::Create(_) | EventKind::Modify(_) => {
                 for p in &event.paths {
                     match parse_org_file(p).await {
                         Ok(org) => {
@@ -104,12 +98,10 @@ impl OrgWatcher {
     }
 }
 
-pub fn watch_files(config: &Config, tx: Vec<Sender<Org>>) -> Result<()> {
+pub fn watch_files(config: &Config, tx: Vec<Sender<Org>>) {
     let paths = config.org_path.clone();
     let _forever = task::spawn(async move {
         let watcher = OrgWatcher::new(tx);
         let _ = watcher.watch_file(paths).await;
     });
-
-    Ok(())
 }
