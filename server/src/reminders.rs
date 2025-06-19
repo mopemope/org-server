@@ -36,7 +36,7 @@ async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
                             break;
                         } else {
                             n += 1;
-                            debug!("Successfully processed file: {}", path.display());
+                            //debug!("Successfully processed file: {}", path.display());
                         }
                     }
                     Err(err) => {
@@ -79,12 +79,14 @@ pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
         handles.push(handle);
     }
 
+    debug!("Spawned {} scan tasks for org paths", handles.len());
+
     // バックグラウンドでタスクの完了を待つ
     task::spawn(async move {
         for (i, handle) in handles.into_iter().enumerate() {
             match handle.await {
-                Ok(()) => debug!("Scan task {} completed successfully", i),
-                Err(err) => error!("Scan task {} join error: {:?}", i, err),
+                Ok(()) => debug!("Scan task {} completed successfully", i + 1),
+                Err(err) => error!("Scan task {} join error: {:?}", i + 1, err),
             }
         }
         debug!("All scan tasks completed");
