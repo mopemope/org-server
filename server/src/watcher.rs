@@ -5,13 +5,12 @@ use org_parser::Org;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub struct OrgWatcher {
     senders: Vec<Sender<Org>>,
 }
 
-//
 impl OrgWatcher {
     pub const fn new(senders: Vec<Sender<Org>>) -> Self {
         Self { senders }
@@ -28,8 +27,11 @@ impl OrgWatcher {
 
         let watcher = RecommendedWatcher::new(
             move |res| {
-                runtime.block_on(async {
-                    tx.send(res).await.unwrap();
+                let tx = tx.clone();
+                runtime.spawn(async move {
+                    if let Err(err) = tx.send(res).await {
+                        error!("Failed to send file watcher event: {:?}", err);
+                    }
                 });
             },
             notify::Config::default(),
@@ -42,14 +44,22 @@ impl OrgWatcher {
         debug!("create watcher");
 
         for path in paths {
-            watcher.watch(path.as_ref(), notify::RecursiveMode::Recursive)?;
-            debug!("start watch file: {:?}", path);
+            match watcher.watch(path.as_ref(), notify::RecursiveMode::Recursive) {
+                Ok(()) => {
+                    debug!("start watch file: {:?}", path);
+                }
+                Err(err) => {
+                    error!("Failed to watch path {}: {:?}", path, err);
+                    return Err(err);
+                }
+            }
         }
 
         let mut prev_event = None;
         loop {
             let res = rx.recv().await;
             let Some(res) = res else {
+                warn!("File watcher channel closed");
                 break;
             };
 
@@ -80,14 +90,24 @@ impl OrgWatcher {
                 for p in &event.paths {
                     match parse_org_file(p).await {
                         Ok(org) => {
+                            let mut send_errors = 0;
                             for sender in &self.senders {
                                 if let Err(err) = sender.send(org.clone()).await {
-                                    error!("SendError: {:?}", err);
+                                    send_errors += 1;
+                                    debug!("Failed to send org data to channel: {:?}", err);
                                 }
+                            }
+                            if send_errors > 0 {
+                                warn!(
+                                    "Failed to send to {}/{} channels for file: {}",
+                                    send_errors,
+                                    self.senders.len(),
+                                    p.display()
+                                );
                             }
                         }
                         Err(err) => {
-                            error!("ParseError: {:?}", err);
+                            error!("Failed to parse org file {}: {:?}", p.display(), err);
                         }
                     }
                 }
@@ -103,6 +123,8 @@ pub fn watch_files(config: &Config, tx: Vec<Sender<Org>>) {
     let paths = config.org_path.clone();
     let _forever = task::spawn(async move {
         let watcher = OrgWatcher::new(tx);
-        let _ = watcher.watch_file(paths).await;
+        if let Err(err) = watcher.watch_file(paths).await {
+            error!("File watcher failed: {:?}", err);
+        }
     });
 }

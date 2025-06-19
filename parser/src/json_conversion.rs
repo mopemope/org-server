@@ -1,5 +1,7 @@
-use crate::parser::{Content, Drawer, Keyword, Org, Pos, Properties, Row, Scheduling, Section};
-use serde::Serialize;
+use crate::parser::{
+    Content, Drawer, Keyword, Org, Pos, Properties, Property, Row, Scheduling, Section,
+};
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use thiserror::Error;
 
@@ -234,7 +236,7 @@ fn convert_scheduling(
 }
 
 /// 位置情報を制御可能なDrawer
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeDrawer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pos: Option<Pos>,
@@ -243,7 +245,7 @@ struct SafeDrawer {
 }
 
 /// 位置情報を制御可能なProperties
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeProperties {
     #[serde(skip_serializing_if = "Option::is_none")]
     pos: Option<Pos>,
@@ -251,7 +253,7 @@ struct SafeProperties {
 }
 
 /// 位置情報を制御可能なProperty
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeProperty {
     #[serde(skip_serializing_if = "Option::is_none")]
     pos: Option<Pos>,
@@ -260,7 +262,7 @@ struct SafeProperty {
 }
 
 /// 位置情報を制御可能なKeyword
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeKeyword {
     #[serde(skip_serializing_if = "Option::is_none")]
     pos: Option<Pos>,
@@ -269,7 +271,7 @@ struct SafeKeyword {
 }
 
 /// 位置情報を制御可能なRow
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     pos: Option<Pos>,
@@ -277,7 +279,7 @@ struct SafeRow {
 }
 
 /// 位置情報を制御可能なContent
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum SafeContent {
     Text {
@@ -294,7 +296,7 @@ enum SafeContent {
 }
 
 /// 位置情報を制御可能なScheduling
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum SafeScheduling {
     Scheduled {
@@ -312,7 +314,7 @@ enum SafeScheduling {
 }
 
 /// 位置情報を制御可能なSection
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeSection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pos: Option<Pos>,
@@ -328,7 +330,7 @@ struct SafeSection {
 }
 
 /// 位置情報を制御可能なOrg
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SafeOrg {
     filename: Option<String>,
     id: Option<String>,
@@ -385,8 +387,12 @@ impl Org {
 
     /// JSONからの復元
     pub fn from_json(json: &str) -> Result<Self, JsonConversionError> {
-        serde_json::from_str(json)
-            .map_err(|e| JsonConversionError::DeserializationError { source: e })
+        // まずSafeOrg形式として読み込み
+        let safe_org: SafeOrg = serde_json::from_str(json)
+            .map_err(|e| JsonConversionError::DeserializationError { source: e })?;
+
+        // SafeOrgからOrgに変換
+        Ok(convert_safe_org_to_org(safe_org))
     }
 
     /// ストリーミング変換（大きなファイル用）
@@ -461,6 +467,154 @@ impl Org {
     }
 }
 
+/// SafeOrgからOrgへの変換
+fn convert_safe_org_to_org(safe_org: SafeOrg) -> Org {
+    Org {
+        filename: safe_org.filename,
+        id: safe_org.id,
+        title: safe_org.title,
+        drawers: safe_org
+            .drawers
+            .into_iter()
+            .map(convert_safe_drawer_to_drawer)
+            .collect(),
+        properties: safe_org
+            .properties
+            .into_iter()
+            .map(convert_safe_properties_to_properties)
+            .collect(),
+        keywords: safe_org
+            .keywords
+            .into_iter()
+            .map(convert_safe_keyword_to_keyword)
+            .collect(),
+        sections: safe_org
+            .sections
+            .into_iter()
+            .map(convert_safe_section_to_section)
+            .collect(),
+    }
+}
+
+/// SafeDrawerからDrawerへの変換
+fn convert_safe_drawer_to_drawer(safe_drawer: SafeDrawer) -> Drawer {
+    Drawer {
+        pos: safe_drawer.pos.unwrap_or_default(),
+        name: safe_drawer.name,
+        children: safe_drawer
+            .children
+            .into_iter()
+            .map(convert_safe_row_to_row)
+            .collect(),
+    }
+}
+
+/// SafePropertiesからPropertiesへの変換
+fn convert_safe_properties_to_properties(safe_properties: SafeProperties) -> Properties {
+    Properties {
+        pos: safe_properties.pos.unwrap_or_default(),
+        children: safe_properties
+            .children
+            .into_iter()
+            .map(convert_safe_property_to_property)
+            .collect(),
+    }
+}
+
+/// SafePropertyからPropertyへの変換
+fn convert_safe_property_to_property(safe_property: SafeProperty) -> Property {
+    Property {
+        pos: safe_property.pos.unwrap_or_default(),
+        key: safe_property.key,
+        value: safe_property.value,
+    }
+}
+
+/// SafeKeywordからKeywordへの変換
+fn convert_safe_keyword_to_keyword(safe_keyword: SafeKeyword) -> Keyword {
+    Keyword {
+        pos: safe_keyword.pos.unwrap_or_default(),
+        key: safe_keyword.key,
+        value: safe_keyword.value,
+    }
+}
+
+/// SafeRowからRowへの変換
+fn convert_safe_row_to_row(safe_row: SafeRow) -> Row {
+    Row {
+        pos: safe_row.pos.unwrap_or_default(),
+        contents: safe_row
+            .contents
+            .into_iter()
+            .map(convert_safe_content_to_content)
+            .collect(),
+    }
+}
+
+/// SafeContentからContentへの変換
+fn convert_safe_content_to_content(safe_content: SafeContent) -> Content {
+    match safe_content {
+        SafeContent::Text { pos, text } => Content::Text(pos.unwrap_or_default(), text),
+        SafeContent::Hyperlink {
+            pos,
+            link,
+            description,
+        } => Content::Hyperlink(pos.unwrap_or_default(), link, description),
+    }
+}
+
+/// SafeSchedulingからSchedulingへの変換
+fn convert_safe_scheduling_to_scheduling(safe_scheduling: SafeScheduling) -> Scheduling {
+    match safe_scheduling {
+        SafeScheduling::Scheduled { pos, title, data } => {
+            Scheduling::Scheduled(pos.unwrap_or_default(), title, data)
+        }
+        SafeScheduling::Deadline { pos, title, data } => {
+            Scheduling::Deadline(pos.unwrap_or_default(), title, data)
+        }
+    }
+}
+
+/// SafeSectionからSectionへの変換
+fn convert_safe_section_to_section(safe_section: SafeSection) -> Section {
+    Section {
+        pos: safe_section.pos.unwrap_or_default(),
+        id: safe_section.id,
+        headline_symbol: safe_section.headline_symbol,
+        title: safe_section.title,
+        drawers: safe_section
+            .drawers
+            .into_iter()
+            .map(convert_safe_drawer_to_drawer)
+            .collect(),
+        properties: safe_section
+            .properties
+            .into_iter()
+            .map(convert_safe_properties_to_properties)
+            .collect(),
+        keywords: safe_section
+            .keywords
+            .into_iter()
+            .map(convert_safe_keyword_to_keyword)
+            .collect(),
+        contents: safe_section
+            .contents
+            .into_iter()
+            .map(convert_safe_row_to_row)
+            .collect(),
+        scheduling: safe_section
+            .scheduling
+            .into_iter()
+            .map(convert_safe_scheduling_to_scheduling)
+            .collect(),
+        sections: safe_section
+            .sections
+            .into_iter()
+            .map(convert_safe_section_to_section)
+            .collect(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -499,9 +653,8 @@ Content for subsection 1.1
         let json = org.to_json_compact().expect("Failed to convert to JSON");
         assert!(!json.is_empty());
 
-        // 元のOrg構造体の直接的なシリアライゼーション/デシリアライゼーション
-        let direct_json = serde_json::to_string(&org).expect("Failed to serialize org directly");
-        let restored_org = Org::from_json(&direct_json).expect("Failed to restore from JSON");
+        // SafeOrg形式のJSON往復変換テスト
+        let restored_org = Org::from_json(&json).expect("Failed to restore from JSON");
         assert_eq!(org.title, restored_org.title);
         assert_eq!(org.sections.len(), restored_org.sections.len());
 

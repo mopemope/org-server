@@ -1,0 +1,177 @@
+#+TITLE: スケジューリングパターンテスト
+
+* 基本的なスケジューリング
+:PROPERTIES:
+:ID:       basic-scheduling
+:END:
+
+** TODO 単純なSCHEDULED
+SCHEDULED: <2024-06-20 Thu 09:00>
+:PROPERTIES:
+:ID:       simple-scheduled
+:END:
+
+基本的なスケジュール設定。
+
+** TODO 単純なDEADLINE
+DEADLINE: <2024-06-25 Tue 17:00>
+:PROPERTIES:
+:ID:       simple-deadline
+:END:
+
+基本的な締切設定。
+
+** TODO SCHEDULEDとDEADLINE両方
+SCHEDULED: <2024-06-20 Thu 09:00>
+DEADLINE: <2024-06-25 Tue 17:00>
+:PROPERTIES:
+:ID:       both-scheduled-deadline
+:END:
+
+スケジュールと締切の両方を設定。
+
+* 繰り返しパターン
+:PROPERTIES:
+:ID:       repeat-patterns
+:END:
+
+** TODO 毎日の繰り返し
+SCHEDULED: <2024-06-20 Thu 06:00 +1d>
+:PROPERTIES:
+:ID:       daily-repeat
+:END:
+
+毎日繰り返すタスク。
+
+** TODO 毎週の繰り返し
+SCHEDULED: <2024-06-20 Thu 09:00 +1w>
+:PROPERTIES:
+:ID:       weekly-repeat
+:END:
+
+毎週繰り返すタスク。
+
+** TODO 毎月の繰り返し
+SCHEDULED: <2024-06-20 Thu 10:00 +1m>
+:PROPERTIES:
+:ID:       monthly-repeat
+:END:
+
+毎月繰り返すタスク。
+
+** TODO 毎年の繰り返し
+SCHEDULED: <2024-06-20 Thu 11:00 +1y>
+:PROPERTIES:
+:ID:       yearly-repeat
+:END:
+
+毎年繰り返すタスク。
+
+* 時間指定パターン
+:PROPERTIES:
+:ID:       time-patterns
+:END:
+
+** TODO 時間なし
+SCHEDULED: <2024-06-20 Thu>
+:PROPERTIES:
+:ID:       no-time
+:END:
+
+時間指定なしのスケジュール。
+
+** TODO 時間あり
+SCHEDULED: <2024-06-20 Thu 14:30>
+:PROPERTIES:
+:ID:       with-time
+:END:
+
+時間指定ありのスケジュール。
+
+** TODO 時間範囲
+SCHEDULED: <2024-06-20 Thu 09:00-11:00>
+:PROPERTIES:
+:ID:       time-range
+:END:
+
+時間範囲指定のスケジュール。
+
+* 複雑なパターン
+:PROPERTIES:
+:ID:       complex-patterns
+:END:
+
+** TODO 複数日にわたるイベント
+SCHEDULED: <2024-06-20 Thu>--<2024-06-22 Sat>
+:PROPERTIES:
+:ID:       multi-day-event
+:END:
+
+複数日にわたるイベント。
+
+** TODO 警告期間付きDEADLINE
+DEADLINE: <2024-06-25 Tue 17:00 -2d>
+:PROPERTIES:
+:ID:       deadline-with-warning
+:END:
+
+2日前から警告するDEADLINE。
+
+** TODO 遅延許可付きSCHEDULED
+SCHEDULED: <2024-06-20 Thu 09:00 .+1w>
+:PROPERTIES:
+:ID:       scheduled-with-delay
+:END:
+
+遅延を許可する繰り返しスケジュール。
+
+* 非アクティブタイムスタンプ
+:PROPERTIES:
+:ID:       inactive-timestamps
+:END:
+
+** メモ: 会議記録
+:PROPERTIES:
+:ID:       meeting-notes
+:CREATED:  [2024-06-19 Wed 14:00]
+:END:
+
+会議は [2024-06-19 Wed 14:00] に開催された。
+次回は [2024-06-26 Wed 14:00] の予定。
+
+** 日記エントリ
+:PROPERTIES:
+:ID:       diary-entry
+:END:
+
+今日 [2024-06-19 Wed] は良い天気だった。
+昨日 [2024-06-18 Tue] は雨だった。
+
+* エッジケース
+:PROPERTIES:
+:ID:       edge-cases
+:END:
+
+** TODO 特殊文字を含む日付コメント
+SCHEDULED: <2024-06-20 Thu 09:00 ++1w>
+:PROPERTIES:
+:ID:       special-chars-date
+:END:
+
+特殊な繰り返しパターン。
+
+** TODO 長い説明付きスケジュール
+SCHEDULED: <2024-06-20 Thu 09:00 +1w -3d>
+DEADLINE: <2024-06-25 Tue 17:00 -1w>
+:PROPERTIES:
+:ID:       complex-scheduling
+:END:
+
+複雑なスケジューリング設定のテスト。
+
+** 空のスケジューリング
+:PROPERTIES:
+:ID:       empty-scheduling
+:END:
+
+スケジューリング情報なしのセクション。

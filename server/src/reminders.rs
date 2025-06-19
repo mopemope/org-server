@@ -7,12 +7,16 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{sync::mpsc, task, time};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
 async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
     let now = Instant::now();
     let mut n = 0;
+    let mut errors = 0;
+
+    debug!("Starting scan of path: {}", path);
+
     for entry in WalkDir::new(path)
         .into_iter()
         .filter_map(std::result::Result::ok)
@@ -23,19 +27,41 @@ async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
                 match parse_org_file(&path).await {
                     Ok(org) => {
                         if let Err(err) = tx.send(org).await {
-                            error!("SendError: {:?}", err);
+                            error!(
+                                "Failed to send parsed org data for file {}: {:?}",
+                                path.display(),
+                                err
+                            );
+                            // チャンネルが閉じられている場合は処理を中断
+                            break;
                         } else {
                             n += 1;
+                            debug!("Successfully processed file: {}", path.display());
                         }
                     }
                     Err(err) => {
-                        error!("ParseError: {:?}", err);
+                        error!("Failed to parse org file {}: {:?}", path.display(), err);
+                        errors += 1;
                     }
                 }
             }
         }
     }
-    debug!("scan: {:?} {} org files {:?}", path, n, now.elapsed());
+
+    if errors > 0 {
+        warn!(
+            "Scan completed with {} errors out of {} total org files",
+            errors,
+            n + errors
+        );
+    } else {
+        debug!(
+            "Scan completed successfully: {} org files processed in {:?}",
+            n,
+            now.elapsed()
+        );
+    }
+
     Ok(())
 }
 
@@ -47,7 +73,7 @@ pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
         let tx = tx.clone();
         let handle = task::spawn(async move {
             if let Err(err) = scan_reminders(&p, tx).await {
-                error!("ParseError {:?}", err);
+                error!("Scan task failed for path {}: {:?}", p, err);
             }
         });
         handles.push(handle);
@@ -55,11 +81,13 @@ pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
 
     // バックグラウンドでタスクの完了を待つ
     task::spawn(async move {
-        for handle in handles {
-            if let Err(err) = handle.await {
-                error!("Task join error: {:?}", err);
+        for (i, handle) in handles.into_iter().enumerate() {
+            match handle.await {
+                Ok(()) => debug!("Scan task {} completed successfully", i),
+                Err(err) => error!("Scan task {} join error: {:?}", i, err),
             }
         }
+        debug!("All scan tasks completed");
     });
 }
 
@@ -88,18 +116,24 @@ pub fn start_check(mut rx: mpsc::Receiver<Org>) {
 
                 }
                 data = rx.recv() => {
-                    if let Some(org) = data {
-                        let res = org.get_reminders();
-                        if !res.is_empty() {
-                            let now = Local::now().naive_local();
-                            for r in res {
-                                if now < r.datetime {
-                                    let dr = r.clone();
-                                    if reminders.insert(r) {
-                                        debug!("append reminder: {:?}", &dr);
+                    match data {
+                        Some(org) => {
+                            let res = org.get_reminders();
+                            if !res.is_empty() {
+                                let now = Local::now().naive_local();
+                                for r in res {
+                                    if now < r.datetime {
+                                        let dr = r.clone();
+                                        if reminders.insert(r) {
+                                            debug!("append reminder: {:?}", &dr);
+                                        }
                                     }
                                 }
                             }
+                        }
+                        None => {
+                            debug!("Reminder channel closed, stopping reminder checker");
+                            break;
                         }
                     }
                 }

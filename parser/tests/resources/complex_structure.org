@@ -1,0 +1,150 @@
+:PROPERTIES:
+:ID:       complex-doc-id-12345
+:CREATED:  [2024-06-19 Wed 12:00]
+:END:
+#+TITLE: 複雑な構造のテストドキュメント
+#+AUTHOR: テストユーザー
+#+EMAIL: test@example.com
+#+STARTUP: overview
+#+STARTUP: inlineimages
+#+OPTIONS: ^:nil toc:2 num:t
+#+TAGS: work(w) personal(p) urgent(u)
+
+* TODO プロジェクト管理 :work:urgent:
+SCHEDULED: <2024-06-20 Thu 09:00 +1w>
+DEADLINE: <2024-06-25 Tue 17:00>
+:PROPERTIES:
+:ID:       project-mgmt-001
+:EFFORT:   2:30
+:CATEGORY: work
+:PRIORITY: A
+:END:
+:LOGBOOK:
+CLOCK: [2024-06-19 Wed 10:00]--[2024-06-19 Wed 12:00] =>  2:00
+- Note taken on [2024-06-19 Wed 12:00] \\
+  プロジェクトの進捗を確認した
+:END:
+
+プロジェクトの全体管理を行う。以下のタスクが含まれる：
+
+- [ ] 要件定義の確認
+- [X] 設計書の作成
+- [ ] 実装計画の策定
+
+詳細は [[https://example.com/project][プロジェクトサイト]] を参照。
+
+** DOING タスク1: 要件分析 :work:
+SCHEDULED: <2024-06-20 Thu 14:00>
+:PROPERTIES:
+:ID:       task-001-requirements
+:EFFORT:   1:00
+:END:
+
+要件の詳細分析を実施する。
+
+*** サブタスク1.1: ユーザーストーリー作成
+:PROPERTIES:
+:ID:       subtask-001-user-stories
+:END:
+
+ユーザーストーリーを以下の形式で作成：
+- As a [user type]
+- I want [functionality]
+- So that [benefit]
+
+*** サブタスク1.2: 受け入れ条件定義
+:PROPERTIES:
+:ID:       subtask-001-acceptance
+:END:
+
+各ユーザーストーリーに対する受け入れ条件を定義。
+
+** TODO タスク2: 技術調査 :work:
+DEADLINE: <2024-06-22 Sat 18:00>
+:PROPERTIES:
+:ID:       task-002-research
+:EFFORT:   3:00
+:CATEGORY: research
+:END:
+
+新技術の調査と評価を行う。
+
+参考資料：
+- [[https://rust-lang.org/][Rust公式サイト]]
+- [[https://github.com/rust-lang/rust][Rust GitHub]]
+- [[file:./technical_notes.org][技術ノート]]
+
+* DONE 個人タスク :personal:
+CLOSED: [2024-06-18 Tue 20:00]
+:PROPERTIES:
+:ID:       personal-tasks-001
+:END:
+
+個人的なタスクの管理。
+
+** DONE 読書: Rustプログラミング入門
+CLOSED: [2024-06-18 Tue 19:30]
+:PROPERTIES:
+:ID:       reading-rust-intro
+:PAGES:    250
+:END:
+
+Rustの基礎を学習完了。
+
+** TODO 運動: ジョギング :personal:
+SCHEDULED: <2024-06-20 Thu 06:00 +1d>
+:PROPERTIES:
+:ID:       exercise-jogging
+:DURATION: 30min
+:END:
+
+毎日のジョギングを継続する。
+
+* 参考資料とリンク
+:PROPERTIES:
+:ID:       references-section
+:END:
+
+** Webリソース
+- [[https://orgmode.org/][Org Mode公式サイト]]
+- [[https://www.gnu.org/software/emacs/][GNU Emacs]]
+- [[mailto:support@example.com][サポートメール]]
+
+** ローカルファイル
+- [[file:~/documents/notes.org][個人ノート]]
+- [[file:./project_files/spec.pdf][仕様書]]
+
+* 特殊文字とUnicodeテスト
+:PROPERTIES:
+:ID:       unicode-test-section
+:END:
+
+日本語、絵文字、特殊文字のテスト：
+- 日本語: こんにちは世界 🌍
+- 数学記号: α β γ δ ∑ ∫ ∞
+- 特殊文字: "quotes" 'apostrophe' <brackets> [square] {curly}
+- 絵文字: 🚀 💻 📝 ✅ ❌ ⚠️
+
+** 長いテキストブロック
+:PROPERTIES:
+:ID:       long-text-block
+:END:
+
+これは非常に長いテキストブロックのテストです。Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+
+* 空のセクション
+:PROPERTIES:
+:ID:       empty-section
+:END:
+
+** 完全に空のサブセクション
+:PROPERTIES:
+:ID:       completely-empty
+:END:
+
+** コンテンツのないサブセクション
+:PROPERTIES:
+:ID:       no-content
+:END:

@@ -1,0 +1,207 @@
+#+TITLE: Unicode文字・特殊文字テスト 🌍
+#+AUTHOR: テストユーザー 👨‍💻
+#+EMAIL: test@example.com
+
+* 日本語コンテンツ 🇯🇵
+:PROPERTIES:
+:ID:       japanese-content
+:CATEGORY: 日本語
+:END:
+
+** ひらがな・カタカナ・漢字
+:PROPERTIES:
+:ID:       japanese-scripts
+:END:
+
+ひらがな: あいうえお かきくけこ さしすせそ
+カタカナ: アイウエオ カキクケコ サシスセソ
+漢字: 日本語 文字 試験 複雑 構造
+
+** 長い日本語文章
+:PROPERTIES:
+:ID:       long-japanese-text
+:END:
+
+これは日本語の長い文章のテストです。組織モード（Org-mode）は、プレーンテキストでメモを取り、TODOリストを管理し、プロジェクトを計画し、文書を作成するためのモードです。Emacsで動作し、高速で効果的なプレーンテキストシステムです。
+
+日本語の文章では、句読点（、。）や括弧（）「」『』などの記号も重要です。また、数字（１２３４５）や英数字（ABC123）も混在することがあります。
+
+* 絵文字とシンボル 😊
+:PROPERTIES:
+:ID:       emoji-symbols
+:END:
+
+** 基本的な絵文字
+:PROPERTIES:
+:ID:       basic-emoji
+:END:
+
+顔: 😊 😢 😡 😴 🤔 😍 🥳
+手: 👍 👎 👋 🤝 👏 🙏
+物: 📝 💻 📱 🚀 🎯 ⚡
+
+** 複雑な絵文字
+:PROPERTIES:
+:ID:       complex-emoji
+:END:
+
+職業: 👨‍💻 👩‍🔬 👨‍🍳 👩‍⚕️ 👨‍🎨
+家族: 👨‍👩‍👧‍👦 👪 👶 👴 👵
+国旗: 🇯🇵 🇺🇸 🇬🇧 🇫🇷 🇩🇪
+
+* 数学記号・特殊文字 ∑
+:PROPERTIES:
+:ID:       math-symbols
+:END:
+
+** ギリシャ文字
+:PROPERTIES:
+:ID:       greek-letters
+:END:
+
+小文字: α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω
+大文字: Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω
+
+** 数学演算子
+:PROPERTIES:
+:ID:       math-operators
+:END:
+
+基本: + - × ÷ = ≠ < > ≤ ≥ ± ∓
+集合: ∈ ∉ ⊂ ⊃ ⊆ ⊇ ∪ ∩ ∅
+微積分: ∫ ∮ ∂ ∇ ∞ ∑ ∏ √ ∛
+論理: ∧ ∨ ¬ → ↔ ∀ ∃
+
+** 矢印・記号
+:PROPERTIES:
+:ID:       arrows-symbols
+:END:
+
+矢印: ← → ↑ ↓ ↔ ↕ ⇐ ⇒ ⇑ ⇓ ⇔ ⇕
+チェック: ✓ ✗ ☑ ☒ ✅ ❌ ⚠️ ⛔
+星・図形: ★ ☆ ♠ ♣ ♥ ♦ ◆ ◇ ○ ● □ ■ △ ▲
+
+* 引用符・括弧類 "quotes"
+:PROPERTIES:
+:ID:       quotes-brackets
+:END:
+
+** 各種引用符
+:PROPERTIES:
+:ID:       various-quotes
+:END:
+
+英語: "double quotes" 'single quotes'
+日本語: 「かぎ括弧」 『二重かぎ括弧』
+その他: „German quotes" «French quotes» ‚single low'
+
+** 各種括弧
+:PROPERTIES:
+:ID:       various-brackets
+:END:
+
+基本: () [] {} <>
+数学: ⟨⟩ ⟪⟫ ⌈⌉ ⌊⌋
+装飾: 【】 〔〕 〈〉 《》
+
+* 制御文字・特殊ケース
+:PROPERTIES:
+:ID:       control-chars
+:END:
+
+** タブと改行
+:PROPERTIES:
+:ID:       tabs-newlines
+:END:
+
+タブ文字:	ここにタブがあります	複数	タブ
+改行テスト:
+複数行に
+わたる
+テキスト
+
+** 空白文字
+:PROPERTIES:
+:ID:       whitespace-chars
+:END:
+
+通常の空白: word1 word2 word3
+全角空白: word1　word2　word3
+ノーブレークスペース: word1 word2 word3
+
+* ハイパーリンクとUnicode
+:PROPERTIES:
+:ID:       unicode-hyperlinks
+:END:
+
+** Unicode URL
+:PROPERTIES:
+:ID:       unicode-urls
+:END:
+
+日本語ドメイン: [[https://日本語.example.com][日本語サイト]]
+Unicode パス: [[https://example.com/テスト/パス][テストページ]]
+絵文字リンク: [[https://example.com/🚀][ロケット 🚀]]
+
+** Unicode 説明文
+:PROPERTIES:
+:ID:       unicode-descriptions
+:END:
+
+[[https://rust-lang.org/][Rust プログラミング言語 🦀]]
+[[https://github.com][GitHub - 開発者のためのプラットフォーム 👨‍💻]]
+[[mailto:test@日本語.example.com][日本語メールアドレス 📧]]
+
+* 長いUnicodeテキスト
+:PROPERTIES:
+:ID:       long-unicode-text
+:END:
+
+これは非常に長いUnicodeテキストのテストです。様々な文字体系が混在しています：
+
+ラテン文字: Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+日本語: 吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。
+中国語: 中文测试文本，包含简体和繁體字符。
+韓国語: 한국어 테스트 텍스트입니다. 한글과 한자가 포함되어 있습니다.
+アラビア語: هذا نص تجريبي باللغة العربية.
+ロシア語: Это тестовый текст на русском языке.
+ギリシャ語: Αυτό είναι ένα δοκιμαστικό κείμενο στα ελληνικά.
+
+絵文字も混在: 🌍🌎🌏 世界中の文字 🔤🔡 数字 🔢 記号 🔣
+
+数学式の例: E = mc² ∫₀^∞ e^(-x²) dx = √π/2 ∑ᵢ₌₁ⁿ xᵢ
+
+特殊記号: ©️®️™️ §¶†‡ •‰‱ ℃℉ ℀℁ ⅛⅜⅝⅞
+
+* エスケープが必要な文字
+:PROPERTIES:
+:ID:       escape-chars
+:END:
+
+** JSON特殊文字
+:PROPERTIES:
+:ID:       json-special
+:END:
+
+バックスラッシュ: \ \\ \n \r \t
+引用符: " \" ' \'
+制御文字: \u0000 \u001F \u007F
+
+** Org-mode特殊文字
+:PROPERTIES:
+:ID:       org-special
+:END:
+
+見出し記号: * ** *** ****
+リンク記号: [[ ]] [ ]
+プロパティ: : :: :::
+タグ: : tag1:tag2:
+
+** HTML/XML文字
+:PROPERTIES:
+:ID:       html-xml-chars
+:END:
+
+エンティティ: &amp; &lt; &gt; &quot; &apos;
+タグ: <tag> </tag> <self-closing/>
+コメント: <!-- comment -->

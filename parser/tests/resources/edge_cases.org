@@ -1,0 +1,367 @@
+#+TITLE: エッジケーステスト
+
+* 空の要素テスト
+:PROPERTIES:
+:ID:       empty-elements-test
+:END:
+
+** 完全に空のセクション
+:PROPERTIES:
+:ID:       completely-empty-section
+:END:
+
+** 空のプロパティを持つセクション
+:PROPERTIES:
+:END:
+
+** 空の値を持つプロパティ
+:PROPERTIES:
+:ID:       empty-property-values
+:EMPTY_KEY:
+:ANOTHER_EMPTY:
+:END:
+
+** 空のドロワー
+:PROPERTIES:
+:ID:       empty-drawer-test
+:END:
+:EMPTY_DRAWER:
+:END:
+
+* 特殊な文字列パターン
+:PROPERTIES:
+:ID:       special-string-patterns
+:END:
+
+** 非常に長いタイトル
+:PROPERTIES:
+:ID:       very-long-title
+:END:
+
+これは非常に長いタイトルのテストです。通常のタイトルよりもはるかに長く、複数の単語、句読点、数字123、特殊文字!@#$%^&*()、そして絵文字🚀も含んでいます。このような長いタイトルが適切に処理されることを確認します。
+
+** 特殊文字のみのタイトル
+:PROPERTIES:
+:ID:       special-chars-only-title
+:END:
+
+!@#$%^&*()_+-=[]{}|;':\",./<>?
+
+** 数字のみのタイトル
+:PROPERTIES:
+:ID:       numbers-only-title
+:END:
+
+1234567890
+
+** 空白のみのタイトル（実際には空白文字）
+:PROPERTIES:
+:ID:       whitespace-only-title
+:END:
+
+   	  
+
+* プロパティの特殊ケース
+:PROPERTIES:
+:ID:       property-edge-cases
+:END:
+
+** 特殊文字を含むプロパティキー
+:PROPERTIES:
+:ID:       special-char-property-keys
+:KEY_WITH_UNDERSCORE: value1
+:KEY-WITH-DASH: value2
+:KEY.WITH.DOTS: value3
+:KEY123: value4
+:キー日本語: 日本語値
+:🚀EMOJI_KEY: emoji value
+:END:
+
+** 非常に長いプロパティ値
+:PROPERTIES:
+:ID:       long-property-values
+:LONG_VALUE: これは非常に長いプロパティ値のテストです。Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 日本語も含まれています。絵文字🚀も含まれています。
+:ANOTHER_LONG: 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+-=[]{}|;':\",./<>?
+:END:
+
+** 特殊文字を含むプロパティ値
+:PROPERTIES:
+:ID:       special-char-property-values
+:QUOTES: "double quotes" 'single quotes' `backticks`
+:BRACKETS: [square] {curly} <angle> (parentheses)
+:SYMBOLS: !@#$%^&*()_+-=|\\:;\"'<>,.?/
+:UNICODE: αβγδε 🚀🌍💻 日本語 中文 한글
+:NEWLINES: line1\nline2\nline3
+:TABS: col1\tcol2\tcol3
+:END:
+
+* ハイパーリンクの特殊ケース
+:PROPERTIES:
+:ID:       hyperlink-edge-cases
+:END:
+
+** 特殊文字を含むURL
+:PROPERTIES:
+:ID:       special-char-urls
+:END:
+
+[[https://example.com/path?param1=value1&param2=value2][クエリパラメータ付きURL]]
+[[https://example.com/path#fragment][フラグメント付きURL]]
+[[https://user:pass@example.com:8080/path][認証情報付きURL]]
+[[https://example.com/パス/日本語][日本語パス]]
+[[https://example.com/🚀/emoji][絵文字パス]]
+
+** 特殊文字を含む説明文
+:PROPERTIES:
+:ID:       special-char-descriptions
+:END:
+
+[[https://example.com][説明文に"引用符"を含む]]
+[[https://example.com][説明文に[角括弧]を含む]]
+[[https://example.com][説明文に<山括弧>を含む]]
+[[https://example.com][説明文に絵文字🚀を含む]]
+[[https://example.com][説明文に日本語を含む]]
+
+** 長いURL・説明文
+:PROPERTIES:
+:ID:       long-urls-descriptions
+:END:
+
+[[https://example.com/very/long/path/with/many/segments/and/parameters?param1=value1&param2=value2&param3=value3&param4=value4&param5=value5][これは非常に長い説明文のテストです。通常の説明文よりもはるかに長く、複数の文、句読点、そして様々な文字が含まれています。]]
+
+** 空の説明文・URL
+:PROPERTIES:
+:ID:       empty-url-description
+:END:
+
+[[https://example.com][]]
+[[]]
+
+* スケジューリングの特殊ケース
+:PROPERTIES:
+:ID:       scheduling-edge-cases
+:END:
+
+** TODO 不正な日付形式（パーサーがどう処理するか）
+SCHEDULED: <invalid-date>
+DEADLINE: <2024-13-45 Mon 25:99>
+:PROPERTIES:
+:ID:       invalid-date-formats
+:END:
+
+** TODO 空のスケジューリング
+SCHEDULED: <>
+DEADLINE: <>
+:PROPERTIES:
+:ID:       empty-scheduling
+:END:
+
+** TODO 特殊文字を含むスケジューリング
+SCHEDULED: <2024-06-20 Thu 09:00 +1w -2d>
+DEADLINE: <2024-06-25 Tue 17:00 ++1m>
+:PROPERTIES:
+:ID:       special-char-scheduling
+:END:
+
+* 深い階層構造
+:PROPERTIES:
+:ID:       deep-hierarchy
+:END:
+
+** レベル2
+:PROPERTIES:
+:ID:       level-2
+:END:
+
+*** レベル3
+:PROPERTIES:
+:ID:       level-3
+:END:
+
+**** レベル4
+:PROPERTIES:
+:ID:       level-4
+:END:
+
+***** レベル5
+:PROPERTIES:
+:ID:       level-5
+:END:
+
+****** レベル6
+:PROPERTIES:
+:ID:       level-6
+:END:
+
+******* レベル7
+:PROPERTIES:
+:ID:       level-7
+:END:
+
+******** レベル8
+:PROPERTIES:
+:ID:       level-8
+:END:
+
+********* レベル9
+:PROPERTIES:
+:ID:       level-9
+:END:
+
+********** レベル10
+:PROPERTIES:
+:ID:       level-10
+:END:
+
+*********** レベル11
+:PROPERTIES:
+:ID:       level-11
+:END:
+
+************ レベル12
+:PROPERTIES:
+:ID:       level-12
+:END:
+
+最深レベルのコンテンツ。
+
+* 大量のセクション
+:PROPERTIES:
+:ID:       many-sections
+:END:
+
+** セクション001
+:PROPERTIES:
+:ID:       section-001
+:END:
+
+** セクション002
+:PROPERTIES:
+:ID:       section-002
+:END:
+
+** セクション003
+:PROPERTIES:
+:ID:       section-003
+:END:
+
+** セクション004
+:PROPERTIES:
+:ID:       section-004
+:END:
+
+** セクション005
+:PROPERTIES:
+:ID:       section-005
+:END:
+
+* 境界値テスト
+:PROPERTIES:
+:ID:       boundary-value-tests
+:END:
+
+** 最小値
+:PROPERTIES:
+:ID:       minimum-values
+:SINGLE_CHAR: a
+:SINGLE_NUM: 1
+:END:
+
+a
+
+** ゼロ長文字列
+:PROPERTIES:
+:ID:       zero-length-strings
+:EMPTY:
+:END:
+
+** NULL文字（実際のNULL文字は含まれない）
+:PROPERTIES:
+:ID:       null-char-test
+:NULL_LIKE: \0
+:END:
+
+* 重複ID・キーのテスト
+:PROPERTIES:
+:ID:       duplicate-test
+:DUPLICATE_KEY: value1
+:DUPLICATE_KEY: value2
+:END:
+
+** 重複IDセクション1
+:PROPERTIES:
+:ID:       duplicate-id
+:END:
+
+** 重複IDセクション2
+:PROPERTIES:
+:ID:       duplicate-id
+:END:
+
+* 特殊なドロワー
+:PROPERTIES:
+:ID:       special-drawers
+:END:
+
+** LOGBOOKドロワー
+:PROPERTIES:
+:ID:       logbook-drawer
+:END:
+:LOGBOOK:
+CLOCK: [2024-06-19 Wed 10:00]--[2024-06-19 Wed 12:00] =>  2:00
+CLOCK: [2024-06-18 Tue 14:00]--[2024-06-18 Tue 16:30] =>  2:30
+- Note taken on [2024-06-19 Wed 12:00] \\
+  作業完了
+- State "DONE"       from "TODO"       [2024-06-19 Wed 12:00]
+:END:
+
+** カスタムドロワー
+:PROPERTIES:
+:ID:       custom-drawer
+:END:
+:CUSTOM:
+カスタムドロワーの内容
+複数行にわたる
+特殊文字: !@#$%^&*()
+日本語: こんにちは
+絵文字: 🚀
+:END:
+
+** 空のドロワー
+:PROPERTIES:
+:ID:       empty-drawer
+:END:
+:EMPTY:
+:END:
+
+* 混在コンテンツ
+:PROPERTIES:
+:ID:       mixed-content
+:END:
+
+通常のテキスト [[https://example.com][リンク]] さらにテキスト
+改行を含む
+複数行の
+コンテンツ
+
+[[https://example.com/link1][リンク1]] と [[https://example.com/link2][リンク2]]
+
+特殊文字: !@#$%^&*() 日本語: こんにちは 絵文字: 🚀
+
+* 不完全な構造（パーサーテスト用）
+:PROPERTIES:
+:ID:       incomplete-structures
+:END:
+
+** 閉じられていないプロパティ
+:PROPERTIES:
+:ID:       unclosed-properties
+:UNCLOSED: value
+
+** 不正なドロワー
+:PROPERTIES:
+:ID:       invalid-drawer
+:END:
+:INVALID
+内容
+（ENDがない）

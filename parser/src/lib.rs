@@ -4,6 +4,12 @@ mod movable;
 mod parser;
 mod reminder;
 
+#[cfg(test)]
+pub mod test_helpers;
+
+#[cfg(test)]
+mod comprehensive_json_tests;
+
 pub use json_conversion::{JsonConversionConfig, JsonConversionError};
 pub use parser::Context;
 pub use parser::Org;
