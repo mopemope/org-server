@@ -1,0 +1,36 @@
+:PROPERTIES:
+:ID: small-test-file
+:TITLE: Small Test File
+:END:
+
+#+TITLE: Small Performance Test
+#+TODO: TODO DOING | DONE
+
+* TODO First Task :work:urgent:
+SCHEDULED: <2024-12-15 Sun 09:00>
+:PROPERTIES:
+:ID: task-001
+:EFFORT: 2h
+:END:
+
+This is the first task with some content.
+It has [[https://example.com][a link]] and some text.
+
+** Subtask 1.1
+Some subtask content here.
+
+* DOING Second Task :personal:
+DEADLINE: <2024-12-20 Fri 17:00>
+:LOGBOOK:
+- State "DOING" from "TODO" [2024-12-10 Tue 10:00]
+:END:
+
+Working on this task currently.
+
+* DONE Third Task
+:PROPERTIES:
+:ID: task-003
+:COMPLETED: 2024-12-01
+:END:
+
+This task is already completed.

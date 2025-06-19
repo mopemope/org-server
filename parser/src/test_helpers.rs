@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fs;
 
 /// テスト用のヘルパー関数とユーティリティ
-
+///
 /// テストリソースファイルを読み込む
 pub fn load_test_resource(filename: &str) -> Result<String, std::io::Error> {
     let path = format!("tests/resources/{}", filename);

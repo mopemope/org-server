@@ -38,7 +38,7 @@ property_end   = _{ drawer_sep ~ ^"END" ~ drawer_sep }
 property_key   =  { (!drawer_sep ~ ANY)+ }
 property_k     = _{ drawer_sep ~ property_key ~ drawer_sep }
 property_value =  {
-    (active_time_quoted | inactive_time_quoted | !(sp | newline) ~ ANY)+
+    (active_time_quoted | inactive_time_quoted | (!newline ~ ANY))+
 }
 property       =  { property_k ~ sp* ~ property_value ~ sp* }
 properties     =  { property_start ~ sp* ~ newline+ ~ (property ~ newline)* ~ property_end ~ sp* ~ newline* }
@@ -81,8 +81,7 @@ section_text = { !headline ~ (!NEWLINE ~ ANY)+ }
 section_link = { !headline ~ (!NEWLINE ~ hyperlink) }
 
 section_text_block = ${
-    (section_link | section_text)* // (!headline ~ (!NEWLINE ~ (hyperlink|ANY)))*
-  // (!headline ~ (!NEWLINE ~ (ANY) ))*
+    (section_link | section_text)+
 }
 
 section_content = _{

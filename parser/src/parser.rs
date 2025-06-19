@@ -666,7 +666,7 @@ mod tests {
                         assert_eq!("ID", pair.as_str());
                     }
                     Rule::property_value => {
-                        assert_eq!(":value", pair.as_str());
+                        assert_eq!(":value   ", pair.as_str());
                     }
                     _ => {}
                 }

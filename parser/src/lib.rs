@@ -10,6 +10,12 @@ pub mod test_helpers;
 #[cfg(test)]
 mod comprehensive_json_tests;
 
+#[cfg(test)]
+mod infinite_loop_test;
+
+#[cfg(test)]
+mod stress_test;
+
 pub use json_conversion::{JsonConversionConfig, JsonConversionError};
 pub use parser::Context;
 pub use parser::Org;
