@@ -29,10 +29,10 @@ impl std::fmt::Display for PropertiesDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut props: Vec<PropertyDisplay> =
             self.inner.children.iter().map(|p| p.display()).collect();
-        props.sort_by_key(|a| a.line());
+        props.sort_by_key(Display::line);
         writeln!(f, ":PROPERTIES:")?;
         for p in props {
-            writeln!(f, "{}", p)?;
+            writeln!(f, "{p}")?;
         }
         write!(f, ":END:")?;
         Ok(())
@@ -70,15 +70,12 @@ impl std::fmt::Display for ContentDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let str = match self.inner {
             parser::Content::Text(_, text) => text.to_owned(),
-            parser::Content::Hyperlink(_, link, desc) => {
-                if let Some(desc) = desc {
-                    format!("[[{}][{}]]", link, desc)
-                } else {
-                    format!("[[{}]]", link)
-                }
-            }
+            parser::Content::Hyperlink(_, link, desc) => desc.as_ref().map_or_else(
+                || format!("[[{link}]]"),
+                |desc| format!("[[{link}][{desc}]]"),
+            ),
         };
-        write!(f, "{}", str)?;
+        write!(f, "{str}")?;
         Ok(())
     }
 }
@@ -86,8 +83,7 @@ impl std::fmt::Display for ContentDisplay<'_> {
 impl Display for ContentDisplay<'_> {
     fn line(&self) -> usize {
         let pos = match self.inner {
-            parser::Content::Text(pos, _) => pos,
-            parser::Content::Hyperlink(pos, _, _) => pos,
+            parser::Content::Text(pos, _) | parser::Content::Hyperlink(pos, _, _) => pos,
         };
         pos.line
     }
@@ -120,11 +116,11 @@ impl std::fmt::Display for DrawerDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut contents: Vec<RowDisplay> =
             self.inner.children.iter().map(|p| p.display()).collect();
-        contents.sort_by_key(|a| a.line());
+        contents.sort_by_key(Display::line);
 
         writeln!(f, ":{}:", self.inner.name.to_uppercase())?;
         for c in contents {
-            writeln!(f, "{}", c)?;
+            writeln!(f, "{c}")?;
         }
 
         write!(f, ":END:")?;
@@ -146,10 +142,10 @@ pub struct SchedulingDisplay<'a> {
 impl std::fmt::Display for SchedulingDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let str = match self.inner {
-            parser::Scheduling::Scheduled(_, _, dt) => format!("SCHEDULED: <{}>", dt),
-            parser::Scheduling::Deadline(_, _, dt) => format!("DEADLINE: <{}>", dt),
+            parser::Scheduling::Scheduled(_, _, dt) => format!("SCHEDULED: <{dt}>"),
+            parser::Scheduling::Deadline(_, _, dt) => format!("DEADLINE: <{dt}>"),
         };
-        write!(f, "{}", str)?;
+        write!(f, "{str}")?;
         Ok(())
     }
 }
@@ -157,8 +153,9 @@ impl std::fmt::Display for SchedulingDisplay<'_> {
 impl Display for SchedulingDisplay<'_> {
     fn line(&self) -> usize {
         let pos = match self.inner {
-            parser::Scheduling::Scheduled(pos, _, _) => pos,
-            parser::Scheduling::Deadline(pos, _, _) => pos,
+            parser::Scheduling::Scheduled(pos, _, _) | parser::Scheduling::Deadline(pos, _, _) => {
+                pos
+            }
         };
         pos.line
     }
@@ -202,7 +199,7 @@ impl std::fmt::Display for SectionDisplay<'_> {
             if line == start {
                 let buf = c.to_string();
                 for s in buf.split('\n') {
-                    writeln!(f, "{}", s)?;
+                    writeln!(f, "{s}")?;
                     line += 1;
                 }
             } else {
@@ -212,7 +209,7 @@ impl std::fmt::Display for SectionDisplay<'_> {
                 }
                 let buf = c.to_string();
                 for s in buf.split('\n') {
-                    writeln!(f, "{}", s)?;
+                    writeln!(f, "{s}")?;
                     line += 1;
                 }
             }
@@ -256,7 +253,7 @@ impl std::fmt::Display for OrgDisplay<'_> {
             if line == start {
                 let buf = c.to_string();
                 for s in buf.split('\n') {
-                    writeln!(f, "{}", s)?;
+                    writeln!(f, "{s}")?;
                     line += 1;
                 }
             } else {
@@ -266,7 +263,7 @@ impl std::fmt::Display for OrgDisplay<'_> {
                 }
                 let buf = c.to_string();
                 for s in buf.split('\n') {
-                    writeln!(f, "{}", s)?;
+                    writeln!(f, "{s}")?;
                     line += 1;
                 }
             }
@@ -279,7 +276,7 @@ impl std::fmt::Display for OrgDisplay<'_> {
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{parse, Context, Org};
+    use crate::parser::{Context, Org, parse};
     use tracing::debug;
 
     fn init() {
@@ -287,7 +284,7 @@ mod tests {
     }
 
     fn get_test_org() -> Org {
-        let content = r#":PROPERTIES:
+        let content = r":PROPERTIES:
 :ID:   value1
 :ID:   value2
 :END:
@@ -310,7 +307,7 @@ CLOCK: [2024-02-27 Tue 09:56]--[2024-02-27 Tue 17:56] =>  8:00
 CONTENT1
 CONTENT2
 
-"#;
+";
 
         let mut ctx = Context::new();
         parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e))

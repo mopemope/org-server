@@ -13,12 +13,12 @@ pub struct OrgWatcher {
 
 //
 impl OrgWatcher {
-    pub fn new(senders: Vec<Sender<Org>>) -> Self {
-        OrgWatcher { senders }
+    pub const fn new(senders: Vec<Sender<Org>>) -> Self {
+        Self { senders }
     }
 
-    fn create_watcher(
-    ) -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
+    fn create_watcher()
+    -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)

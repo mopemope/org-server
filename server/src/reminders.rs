@@ -13,7 +13,10 @@ use walkdir::WalkDir;
 async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
     let now = Instant::now();
     let mut n = 0;
-    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(path)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+    {
         let path = entry.path().to_owned();
         if let Some(ext) = path.extension() {
             if ext == "org" {

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use tracing::info;
 
 pub async fn run_server(port: u32) -> Result<()> {
@@ -9,7 +9,7 @@ pub async fn run_server(port: u32) -> Result<()> {
         .route("/", get(root));
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
     info!("start server");
     axum::serve(listener, app).await?;
     Ok(())

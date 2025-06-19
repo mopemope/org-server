@@ -74,15 +74,12 @@ fn create_reminder_with_config(
                     let hours = interval_minutes / 60;
                     let remaining_minutes = interval_minutes % 60;
                     if remaining_minutes == 0 {
-                        format!("このイベント終了まであと{}時間: {}", hours, title)
+                        format!("このイベント終了まであと{hours}時間: {title}")
                     } else {
-                        format!(
-                            "このイベント終了まであと{}時間{}分: {}",
-                            hours, remaining_minutes, title
-                        )
+                        format!("このイベント終了まであと{hours}時間{remaining_minutes}分: {title}")
                     }
                 } else {
-                    format!("このイベント終了まであと{}分: {}", interval_minutes, title)
+                    format!("このイベント終了まであと{interval_minutes}分: {title}")
                 }
             }
             Scheduling::Scheduled(_, title, _) => {
@@ -90,20 +87,17 @@ fn create_reminder_with_config(
                     let hours = interval_minutes / 60;
                     let remaining_minutes = interval_minutes % 60;
                     if remaining_minutes == 0 {
-                        format!("このイベント開始まであと{}時間: {}", hours, title)
+                        format!("このイベント開始まであと{hours}時間: {title}")
                     } else {
-                        format!(
-                            "このイベント開始まであと{}時間{}分: {}",
-                            hours, remaining_minutes, title
-                        )
+                        format!("このイベント開始まであと{hours}時間{remaining_minutes}分: {title}")
                     }
                 } else {
-                    format!("このイベント開始まであと{}分: {}", interval_minutes, title)
+                    format!("このイベント開始まであと{interval_minutes}分: {title}")
                 }
             }
         };
 
-        let reminder_datetime = dt - Duration::from_secs(60 * interval_minutes as u64);
+        let reminder_datetime = dt - Duration::from_secs(60 * u64::from(interval_minutes));
         let rem = Reminder {
             title,
             datetime: reminder_datetime,
@@ -120,10 +114,10 @@ fn convert_reminder_with_config(
 ) -> Option<Vec<Reminder>> {
     let now = Local::now().naive_local();
     match sch {
-        Scheduling::Scheduled(_, _title, ref datetime) => {
+        Scheduling::Scheduled(_, _title, datetime) => {
             parse_datetime_and_create_reminder(datetime, sch, config, now)
         }
-        Scheduling::Deadline(_, _title, ref datetime) => {
+        Scheduling::Deadline(_, _title, datetime) => {
             parse_datetime_and_create_reminder(datetime, sch, config, now)
         }
     }
@@ -143,7 +137,7 @@ fn parse_datetime_and_create_reminder(
     }
 
     // 時刻なしの場合はデフォルト時刻（09:00）を追加
-    let datetime_with_time = format!("{} 09:00", datetime);
+    let datetime_with_time = format!("{datetime} 09:00");
     if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime_with_time, "%F %a %R") {
         if dt > now {
             return Some(create_reminder_with_config(dt, sch, config));

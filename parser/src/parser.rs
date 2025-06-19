@@ -1,8 +1,8 @@
 use crate::display;
-use crate::{reminder::get_reminders, Reminder};
+use crate::{Reminder, reminder::get_reminders};
 use anyhow::Result;
-use pest::iterators::Pair;
 use pest::Parser;
+use pest::iterators::Pair;
 use pest_derive::Parser;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -18,8 +18,8 @@ pub struct Context {} // TODO add attr
 
 impl Context {
     #[must_use]
-    pub fn new() -> Self {
-        Context {}
+    pub const fn new() -> Self {
+        Self {}
     }
 }
 
@@ -36,8 +36,8 @@ pub struct Org {
 
 impl Org {
     #[must_use]
-    pub fn new() -> Self {
-        Org {
+    pub const fn new() -> Self {
+        Self {
             filename: None,
             id: None,
             title: None,
@@ -73,7 +73,7 @@ impl Org {
     }
 
     #[must_use]
-    pub fn display(&self) -> display::OrgDisplay<'_> {
+    pub const fn display(&self) -> display::OrgDisplay<'_> {
         display::OrgDisplay { inner: self }
     }
 }
@@ -85,8 +85,8 @@ pub struct Pos {
 }
 
 impl Pos {
-    pub fn new(col: usize, line: usize) -> Self {
-        Pos { col, line }
+    pub const fn new(col: usize, line: usize) -> Self {
+        Self { col, line }
     }
 }
 
@@ -104,7 +104,7 @@ pub struct Keyword {
 }
 
 impl Keyword {
-    pub fn display(&self) -> display::KeywordDisplay<'_> {
+    pub const fn display(&self) -> display::KeywordDisplay<'_> {
         display::KeywordDisplay { inner: self }
     }
 }
@@ -116,7 +116,7 @@ pub struct Properties {
 }
 
 impl Properties {
-    pub fn display(&self) -> display::PropertiesDisplay<'_> {
+    pub const fn display(&self) -> display::PropertiesDisplay<'_> {
         display::PropertiesDisplay { inner: self }
     }
 }
@@ -129,7 +129,7 @@ pub struct Property {
 }
 
 impl Property {
-    pub fn display(&self) -> display::PropertyDisplay<'_> {
+    pub const fn display(&self) -> display::PropertyDisplay<'_> {
         display::PropertyDisplay { inner: self }
     }
 }
@@ -142,7 +142,7 @@ pub struct Drawer {
 }
 
 impl Drawer {
-    pub fn display(&self) -> display::DrawerDisplay<'_> {
+    pub const fn display(&self) -> display::DrawerDisplay<'_> {
         display::DrawerDisplay { inner: self }
     }
 }
@@ -154,7 +154,7 @@ pub enum Content {
 }
 
 impl Content {
-    pub fn display(&self) -> display::ContentDisplay<'_> {
+    pub const fn display(&self) -> display::ContentDisplay<'_> {
         display::ContentDisplay { inner: self }
     }
 }
@@ -162,8 +162,8 @@ impl Content {
 impl PartialEq for Content {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Content::Text(_, a), Content::Text(_, b)) => a == b,
-            (Content::Hyperlink(_, link1, a), Content::Hyperlink(_, link2, b)) => {
+            (Self::Text(_, a), Self::Text(_, b)) => a == b,
+            (Self::Hyperlink(_, link1, a), Self::Hyperlink(_, link2, b)) => {
                 link1 == link2 && a == b
             }
             _ => false,
@@ -174,12 +174,12 @@ impl PartialEq for Content {
 impl Hash for Content {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Content::Text(_, text) => {
+            Self::Text(_, text) => {
                 state.write(&[1]);
                 state.write(text.as_bytes());
                 text.hash(state);
             }
-            Content::Hyperlink(_, link, desc) => {
+            Self::Hyperlink(_, link, desc) => {
                 state.write(&[2]);
                 state.write(link.as_bytes());
                 desc.hash(state);
@@ -195,7 +195,7 @@ pub struct Row {
 }
 
 impl Row {
-    pub fn display(&self) -> display::RowDisplay<'_> {
+    pub const fn display(&self) -> display::RowDisplay<'_> {
         display::RowDisplay { inner: self }
     }
 }
@@ -227,7 +227,7 @@ impl Section {
         res
     }
 
-    pub fn display(&self) -> display::SectionDisplay<'_> {
+    pub const fn display(&self) -> display::SectionDisplay<'_> {
         display::SectionDisplay { inner: self }
     }
 }
@@ -235,16 +235,16 @@ impl Section {
 impl Default for Section {
     fn default() -> Self {
         Self {
-            pos: Default::default(),
+            pos: Pos::default(),
             id: Uuid::new_v4().to_string(),
-            headline_symbol: Default::default(),
-            title: Default::default(),
-            drawers: Default::default(),
-            properties: Default::default(),
-            keywords: Default::default(),
-            contents: Default::default(),
-            sections: Default::default(),
-            scheduling: Default::default(),
+            headline_symbol: String::default(),
+            title: String::default(),
+            drawers: Vec::default(),
+            properties: Vec::default(),
+            keywords: Vec::default(),
+            contents: Vec::default(),
+            sections: Vec::default(),
+            scheduling: Vec::default(),
         }
     }
 }
@@ -256,7 +256,7 @@ pub enum Scheduling {
 }
 
 impl Scheduling {
-    pub fn display(&self) -> display::SchedulingDisplay<'_> {
+    pub const fn display(&self) -> display::SchedulingDisplay<'_> {
         display::SchedulingDisplay { inner: self }
     }
 }
@@ -264,10 +264,8 @@ impl Scheduling {
 impl PartialEq for Scheduling {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Scheduling::Scheduled(_, t1, a), Scheduling::Scheduled(_, t2, b)) => {
-                t1 == t2 && a == b
-            }
-            (Scheduling::Deadline(_, t1, a), Scheduling::Deadline(_, t2, b)) => t1 == t2 && a == b,
+            (Self::Scheduled(_, t1, a), Self::Scheduled(_, t2, b)) => t1 == t2 && a == b,
+            (Self::Deadline(_, t1, a), Self::Deadline(_, t2, b)) => t1 == t2 && a == b,
             _ => false,
         }
     }
@@ -276,12 +274,12 @@ impl PartialEq for Scheduling {
 impl Hash for Scheduling {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Scheduling::Scheduled(_, title, data) => {
+            Self::Scheduled(_, title, data) => {
                 state.write(&[1]);
                 state.write(title.as_bytes());
                 data.hash(state);
             }
-            Scheduling::Deadline(_, title, data) => {
+            Self::Deadline(_, title, data) => {
                 state.write(&[2]);
                 state.write(title.as_bytes());
                 data.hash(state);
@@ -291,12 +289,12 @@ impl Hash for Scheduling {
 }
 
 fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
-    let mut properties: Properties = Default::default();
+    let mut properties: Properties = Properties::default();
     let (line, col) = pair.line_col();
     properties.pos = Pos::new(col, line);
 
     for pair in pair.into_inner() {
-        let mut prop: Property = Default::default();
+        let mut prop: Property = Property::default();
 
         for pair in pair.into_inner() {
             match pair.as_rule() {
@@ -317,7 +315,7 @@ fn parse_properties(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Properties {
 }
 
 fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
-    let mut drawer: Drawer = Default::default();
+    let mut drawer: Drawer = Drawer::default();
     let (line, col) = pair.line_col();
     drawer.pos = Pos::new(col, line);
 
@@ -329,7 +327,7 @@ fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
             Rule::drawer_contents => {
                 for pair in pair.into_inner() {
                     if pair.as_rule() == Rule::drawer_content {
-                        let mut row: Row = Default::default();
+                        let mut row: Row = Row::default();
                         let (line, col) = pair.line_col();
                         row.pos = Pos::new(col, line);
                         // TODO text only ?
@@ -348,7 +346,7 @@ fn parse_drawer(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Drawer {
 }
 
 fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
-    let mut kw: Keyword = Default::default();
+    let mut kw: Keyword = Keyword::default();
 
     for pair in pair.into_inner() {
         match pair.as_rule() {
@@ -370,7 +368,7 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
 
 #[allow(clippy::too_many_lines)]
 fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
-    let mut section: Section = Default::default();
+    let mut section: Section = Section::default();
     let (line, col) = pair.line_col();
     section.pos = Pos::new(col, line);
 
@@ -388,10 +386,9 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                                 Rule::headline_title => {
                                     section.title = pair.as_str().to_string();
                                 }
-                                Rule::tags => {
-                                    // TODO
+                                _ => {
+                                    // TODO: Handle tags and other rules
                                 }
-                                _ => {}
                             }
                         }
                     }
@@ -450,7 +447,7 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 }
             }
             Rule::section_text_block => {
-                let mut row: Row = Default::default();
+                let mut row: Row = Row::default();
                 let (line, col) = pair.line_col();
                 row.pos = Pos::new(col, line);
                 for pair in pair.into_inner() {
@@ -554,7 +551,7 @@ mod tests {
         let pairs =
             OrgParser::parse(Rule::active_time_quoted, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
-            println!("{:?}", pair);
+            println!("{pair:?}");
         }
     }
 
@@ -579,7 +576,7 @@ mod tests {
         let pairs = OrgParser::parse(Rule::inactive_time_quoted, content)
             .unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
-            println!("{:?}", pair);
+            println!("{pair:?}");
         }
     }
 
@@ -614,7 +611,7 @@ mod tests {
                         }
                     }
                     _ => {
-                        println!("{:?}", inner_pair);
+                        println!("{inner_pair:?}");
                     }
                 }
             }
@@ -625,13 +622,13 @@ mod tests {
     #[test]
     fn test_rule_property_start() {
         init();
-        let content = r#":PROPERTIES:"#;
+        let content = r":PROPERTIES:";
         let pairs =
             OrgParser::parse(Rule::property_start, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             debug!("{:?}", pair);
         }
-        let content = r#":properties:"#;
+        let content = r":properties:";
         let pairs =
             OrgParser::parse(Rule::property_start, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
@@ -642,13 +639,13 @@ mod tests {
     #[test]
     fn test_rule_property_end() {
         init();
-        let content = r#":END:"#;
+        let content = r":END:";
         let pairs =
             OrgParser::parse(Rule::property_end, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             debug!("{:?}", pair);
         }
-        let content = r#":end:"#;
+        let content = r":end:";
         let pairs =
             OrgParser::parse(Rule::property_end, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
@@ -660,7 +657,7 @@ mod tests {
     fn test_rule_property() {
         init();
 
-        let content = r#":ID:   :value   "#;
+        let content = r":ID:   :value   ";
         let pairs = OrgParser::parse(Rule::property, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             for pair in pair.into_inner() {
@@ -701,11 +698,11 @@ mod tests {
     fn test_rule_properties() {
         init();
 
-        let content = r#":PROPERTIES:
+        let content = r":PROPERTIES:
 :ID:   :value
 :ID:     :value
 :END:
-"#;
+";
         let pairs = OrgParser::parse(Rule::properties, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             for pair in pair.into_inner() {
@@ -799,10 +796,10 @@ mod tests {
     fn test_rule_drawer_all() {
         init();
 
-        let content = r#":LOGBOOK:
+        let content = r":LOGBOOK:
 [1 abc def] :abc:
 :END:
-"#;
+";
         let pairs = OrgParser::parse(Rule::drawer, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             let pairs = pair.into_inner();
@@ -893,11 +890,11 @@ mod tests {
                             assert_eq!("def", pair.as_str());
                         }
                         _ => {
-                            println!("{:?} {:?}", i, pair);
+                            println!("{i:?} {pair:?}");
                         }
                     },
                     _ => {
-                        println!("{:?} ", pair);
+                        println!("{pair:?} ");
                     }
                 }
             }
@@ -909,14 +906,14 @@ mod tests {
     fn test_rule_section() {
         init();
 
-        let content = r#"* TEST
+        let content = r"* TEST
 :PROPERTIES:
 :ID:   :value1
 :END:
 
 ABCDEF
 
-"#;
+";
         let pairs = OrgParser::parse(Rule::section, content).unwrap_or_else(|e| panic!("{}", e));
 
         for pair in pairs {
@@ -975,7 +972,7 @@ ABCDEF
     fn test_rule_org() {
         init();
 
-        let content = r#":PROPERTIES:
+        let content = r":PROPERTIES:
 :ID:   value
 :END:
 #+TITLE: title
@@ -993,7 +990,7 @@ Content1
 :END:
 Content2
 
-"#;
+";
         let pairs = OrgParser::parse(Rule::org, content).unwrap_or_else(|e| panic!("{}", e));
 
         for pair in pairs {
@@ -1167,14 +1164,14 @@ Content2
     fn test_parse_hyperlink() {
         init();
 
-        let content = r#"
+        let content = r"
 
 * Section
 TEST1
 [[https://example.com]] TEST2
 [[https://example.com][Dectription]] TEST3
 TEST4
-"#;
+";
 
         let mut ctx = Context::new();
         let _org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
@@ -1184,12 +1181,12 @@ TEST4
     fn test_rule_org_simple1() {
         init();
 
-        let content = r#":PROPERTIES:
+        let content = r":PROPERTIES:
 :ID:   value
 :END:
 #+TITLE: title
 
-"#;
+";
         let pairs = OrgParser::parse(Rule::org, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             for _pair in pair.into_inner() {
@@ -1202,7 +1199,7 @@ TEST4
     fn test_parse_org() {
         init();
 
-        let content = r#":PROPERTIES:
+        let content = r":PROPERTIES:
 :ID:   value
 :END:
 #+TITLE: title
@@ -1225,7 +1222,7 @@ CONTENT2
 
 * SECTION 2
 
-"#;
+";
 
         let mut ctx = Context::new();
         let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
