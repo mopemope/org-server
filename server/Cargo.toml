@@ -26,3 +26,6 @@ walkdir = "2"
 futures = { version = "0.3", default-features = false }
 notify-rust = { version = "4", features = ["serde", "zbus"], default-features = false }
 notify = { version = "8", default-features = false }
+
+[dev-dependencies]
+tempfile = "3.8"

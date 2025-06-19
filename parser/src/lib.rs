@@ -17,7 +17,7 @@ mod infinite_loop_test;
 mod stress_test;
 
 pub use json_conversion::{JsonConversionConfig, JsonConversionError};
-pub use parser::Context;
+pub use parser::{Context, Section};
 pub use parser::Org;
 pub use parser::OrgParser;
 pub use parser::parse;

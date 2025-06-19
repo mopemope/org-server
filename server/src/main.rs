@@ -1,12 +1,12 @@
 use anyhow::Result;
-use clap::Parser;
 use org_parser::Org;
-use std::path::PathBuf;
 use tokio::sync::mpsc;
-use tracing::debug;
+use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod cli;
 mod config;
+mod json_output;
 mod notification;
 mod parse;
 mod reminders;
@@ -14,35 +14,68 @@ mod utils;
 mod watcher;
 mod web;
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct App {
-    #[arg(short, long)]
-    config: Option<String>,
-}
+use cli::{Cli, Commands};
+use json_output::{JsonOutputConfig, parse_and_output_json};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing();
 
-    let app = App::parse();
-    let config_path = if let Some(path) = app.config.as_deref() {
-        PathBuf::from(path)
-    } else {
-        utils::get_config_file("org-server.toml")?
-    };
+    let cli = Cli::parse_args();
+    
+    match cli.get_command() {
+        Commands::Parse {
+            file,
+            output,
+            pretty,
+            include_position,
+            include_empty_sections,
+            max_depth,
+        } => {
+            info!("Running in parse mode for file: {}", file.display());
+            
+            let json_config = JsonOutputConfig {
+                pretty,
+                include_position,
+                include_empty_sections,
+                max_depth,
+            };
 
-    debug!("load config path: {:?}", config_path);
-    let config = config::parse_config(&config_path.to_string_lossy())?;
+            parse_and_output_json(&file, output.as_ref(), json_config)?;
+        }
+        Commands::Server { config, port, host } => {
+            info!("Running in server mode on {}:{}", host, port);
+            
+            let config_path = if let Some(path) = config {
+                path
+            } else {
+                utils::get_config_file("org-server.toml")?
+            };
 
-    let mut senders: Vec<mpsc::Sender<Org>> = Vec::new();
+            debug!("load config path: {:?}", config_path);
+            let server_config = config::parse_config(&config_path.to_string_lossy())?;
 
-    // reminder
-    check_reminder(&config, &mut senders);
+            let mut senders: Vec<mpsc::Sender<Org>> = Vec::new();
 
-    watcher::watch_files(&config, senders);
+            // reminder
+            check_reminder(&server_config, &mut senders);
 
-    web::run_server(config.server_port).await?;
+            watcher::watch_files(&server_config, senders);
+
+            // Use the port from CLI args if provided, otherwise use config
+            let server_port = if port == 3000 { 
+                u16::try_from(server_config.server_port)
+                    .unwrap_or_else(|_| {
+                        eprintln!("Warning: server_port {} is too large for u16, using default 3000", server_config.server_port);
+                        3000
+                    })
+            } else { 
+                port 
+            };
+            web::run_server(server_port.into()).await?;
+        }
+    }
+    
     Ok(())
 }
 
