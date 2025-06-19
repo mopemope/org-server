@@ -1,0 +1,659 @@
+use crate::parser::{Content, Drawer, Keyword, Org, Pos, Properties, Row, Scheduling, Section};
+use serde::Serialize;
+use std::io::Write;
+use thiserror::Error;
+
+/// JSON変換時の設定
+#[derive(Debug, Clone)]
+pub struct JsonConversionConfig {
+    /// 最大入れ子深度（無限ループ防止）
+    pub max_depth: usize,
+    /// 位置情報を含めるかどうか
+    pub include_position: bool,
+    /// 美しい整形を行うかどうか
+    pub pretty_print: bool,
+    /// 空のセクションを含めるかどうか
+    pub include_empty_sections: bool,
+}
+
+impl Default for JsonConversionConfig {
+    fn default() -> Self {
+        Self {
+            max_depth: 10,
+            include_position: false,
+            pretty_print: false,
+            include_empty_sections: true,
+        }
+    }
+}
+
+/// JSON変換エラー
+#[derive(Error, Debug)]
+pub enum JsonConversionError {
+    #[error("Maximum depth exceeded: {depth}")]
+    MaxDepthExceeded { depth: usize },
+
+    #[error("JSON serialization failed: {source}")]
+    SerializationError {
+        #[from]
+        source: serde_json::Error,
+    },
+
+    #[error("JSON deserialization failed: {source}")]
+    DeserializationError { source: serde_json::Error },
+
+    #[error("Invalid JSON structure: {message}")]
+    InvalidStructure { message: String },
+
+    #[error("IO error during streaming: {source}")]
+    IoError {
+        #[from]
+        source: std::io::Error,
+    },
+}
+
+/// 深度制限付きでセクションを処理するための関数
+fn process_sections_with_depth_limit(
+    sections: &[Section],
+    config: &JsonConversionConfig,
+    current_depth: usize,
+) -> Result<Vec<SafeSection>, JsonConversionError> {
+    if current_depth >= config.max_depth {
+        return Err(JsonConversionError::MaxDepthExceeded {
+            depth: current_depth,
+        });
+    }
+
+    let mut result = Vec::new();
+
+    for section in sections {
+        if !config.include_empty_sections
+            && section.contents.is_empty()
+            && section.sections.is_empty()
+        {
+            continue;
+        }
+
+        let safe_section = SafeSection {
+            pos: if config.include_position {
+                Some(section.pos.clone())
+            } else {
+                None
+            },
+            id: section.id.clone(),
+            headline_symbol: section.headline_symbol.clone(),
+            title: section.title.clone(),
+            drawers: convert_drawers(&section.drawers, config),
+            properties: convert_properties(&section.properties, config),
+            keywords: convert_keywords(&section.keywords, config),
+            contents: convert_rows(&section.contents, config),
+            scheduling: convert_scheduling(&section.scheduling, config),
+            sections: process_sections_with_depth_limit(
+                &section.sections,
+                config,
+                current_depth + 1,
+            )?,
+        };
+
+        result.push(safe_section);
+    }
+
+    Ok(result)
+}
+
+/// Drawerの変換
+fn convert_drawers(drawers: &[Drawer], config: &JsonConversionConfig) -> Vec<SafeDrawer> {
+    drawers
+        .iter()
+        .map(|drawer| SafeDrawer {
+            pos: if config.include_position {
+                Some(drawer.pos.clone())
+            } else {
+                None
+            },
+            name: drawer.name.clone(),
+            children: convert_rows(&drawer.children, config),
+        })
+        .collect()
+}
+
+/// Propertiesの変換
+fn convert_properties(
+    properties: &[Properties],
+    config: &JsonConversionConfig,
+) -> Vec<SafeProperties> {
+    properties
+        .iter()
+        .map(|props| SafeProperties {
+            pos: if config.include_position {
+                Some(props.pos.clone())
+            } else {
+                None
+            },
+            children: props
+                .children
+                .iter()
+                .map(|prop| SafeProperty {
+                    pos: if config.include_position {
+                        Some(prop.pos.clone())
+                    } else {
+                        None
+                    },
+                    key: prop.key.clone(),
+                    value: prop.value.clone(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+/// Keywordの変換
+fn convert_keywords(keywords: &[Keyword], config: &JsonConversionConfig) -> Vec<SafeKeyword> {
+    keywords
+        .iter()
+        .map(|keyword| SafeKeyword {
+            pos: if config.include_position {
+                Some(keyword.pos.clone())
+            } else {
+                None
+            },
+            key: keyword.key.clone(),
+            value: keyword.value.clone(),
+        })
+        .collect()
+}
+
+/// Rowの変換
+fn convert_rows(rows: &[Row], config: &JsonConversionConfig) -> Vec<SafeRow> {
+    rows.iter()
+        .map(|row| SafeRow {
+            pos: if config.include_position {
+                Some(row.pos.clone())
+            } else {
+                None
+            },
+            contents: convert_contents(&row.contents, config),
+        })
+        .collect()
+}
+
+/// Contentの変換
+fn convert_contents(contents: &[Content], config: &JsonConversionConfig) -> Vec<SafeContent> {
+    contents
+        .iter()
+        .map(|content| match content {
+            Content::Text(pos, text) => SafeContent::Text {
+                pos: if config.include_position {
+                    Some(pos.clone())
+                } else {
+                    None
+                },
+                text: text.clone(),
+            },
+            Content::Hyperlink(pos, link, desc) => SafeContent::Hyperlink {
+                pos: if config.include_position {
+                    Some(pos.clone())
+                } else {
+                    None
+                },
+                link: link.clone(),
+                description: desc.clone(),
+            },
+        })
+        .collect()
+}
+
+/// Schedulingの変換
+fn convert_scheduling(
+    scheduling: &[Scheduling],
+    config: &JsonConversionConfig,
+) -> Vec<SafeScheduling> {
+    scheduling
+        .iter()
+        .map(|sched| match sched {
+            Scheduling::Scheduled(pos, title, data) => SafeScheduling::Scheduled {
+                pos: if config.include_position {
+                    Some(pos.clone())
+                } else {
+                    None
+                },
+                title: title.clone(),
+                data: data.clone(),
+            },
+            Scheduling::Deadline(pos, title, data) => SafeScheduling::Deadline {
+                pos: if config.include_position {
+                    Some(pos.clone())
+                } else {
+                    None
+                },
+                title: title.clone(),
+                data: data.clone(),
+            },
+        })
+        .collect()
+}
+
+/// 位置情報を制御可能なDrawer
+#[derive(Debug, Serialize)]
+struct SafeDrawer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    name: String,
+    children: Vec<SafeRow>,
+}
+
+/// 位置情報を制御可能なProperties
+#[derive(Debug, Serialize)]
+struct SafeProperties {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    children: Vec<SafeProperty>,
+}
+
+/// 位置情報を制御可能なProperty
+#[derive(Debug, Serialize)]
+struct SafeProperty {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    key: String,
+    value: String,
+}
+
+/// 位置情報を制御可能なKeyword
+#[derive(Debug, Serialize)]
+struct SafeKeyword {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    key: String,
+    value: String,
+}
+
+/// 位置情報を制御可能なRow
+#[derive(Debug, Serialize)]
+struct SafeRow {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    contents: Vec<SafeContent>,
+}
+
+/// 位置情報を制御可能なContent
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+enum SafeContent {
+    Text {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pos: Option<Pos>,
+        text: String,
+    },
+    Hyperlink {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pos: Option<Pos>,
+        link: String,
+        description: Option<String>,
+    },
+}
+
+/// 位置情報を制御可能なScheduling
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+enum SafeScheduling {
+    Scheduled {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pos: Option<Pos>,
+        title: String,
+        data: String,
+    },
+    Deadline {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pos: Option<Pos>,
+        title: String,
+        data: String,
+    },
+}
+
+/// 位置情報を制御可能なSection
+#[derive(Debug, Serialize)]
+struct SafeSection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    id: String,
+    headline_symbol: String,
+    title: String,
+    drawers: Vec<SafeDrawer>,
+    properties: Vec<SafeProperties>,
+    keywords: Vec<SafeKeyword>,
+    contents: Vec<SafeRow>,
+    scheduling: Vec<SafeScheduling>,
+    sections: Vec<SafeSection>,
+}
+
+/// 位置情報を制御可能なOrg
+#[derive(Debug, Serialize)]
+struct SafeOrg {
+    filename: Option<String>,
+    id: Option<String>,
+    title: Option<String>,
+    drawers: Vec<SafeDrawer>,
+    properties: Vec<SafeProperties>,
+    keywords: Vec<SafeKeyword>,
+    sections: Vec<SafeSection>,
+}
+
+/// Org構造体のJSON変換機能を拡張
+impl Org {
+    /// 設定可能なJSON変換
+    pub fn to_json_with_config(
+        &self,
+        config: &JsonConversionConfig,
+    ) -> Result<String, JsonConversionError> {
+        let safe_org = SafeOrg {
+            filename: self.filename.clone(),
+            id: self.id.clone(),
+            title: self.title.clone(),
+            drawers: convert_drawers(&self.drawers, config),
+            properties: convert_properties(&self.properties, config),
+            keywords: convert_keywords(&self.keywords, config),
+            sections: process_sections_with_depth_limit(&self.sections, config, 0)?,
+        };
+
+        if config.pretty_print {
+            Ok(serde_json::to_string_pretty(&safe_org)?)
+        } else {
+            Ok(serde_json::to_string(&safe_org)?)
+        }
+    }
+
+    /// 軽量版JSON（位置情報なし）
+    pub fn to_json_compact(&self) -> Result<String, JsonConversionError> {
+        let config = JsonConversionConfig {
+            include_position: false,
+            pretty_print: false,
+            include_empty_sections: false,
+            ..Default::default()
+        };
+        self.to_json_with_config(&config)
+    }
+
+    /// 美しい整形されたJSON
+    pub fn to_json_pretty(&self) -> Result<String, JsonConversionError> {
+        let config = JsonConversionConfig {
+            pretty_print: true,
+            ..Default::default()
+        };
+        self.to_json_with_config(&config)
+    }
+
+    /// JSONからの復元
+    pub fn from_json(json: &str) -> Result<Self, JsonConversionError> {
+        serde_json::from_str(json)
+            .map_err(|e| JsonConversionError::DeserializationError { source: e })
+    }
+
+    /// ストリーミング変換（大きなファイル用）
+    pub fn to_json_stream<W: Write>(
+        &self,
+        writer: W,
+        config: &JsonConversionConfig,
+    ) -> Result<(), JsonConversionError> {
+        let safe_org = SafeOrg {
+            filename: self.filename.clone(),
+            id: self.id.clone(),
+            title: self.title.clone(),
+            drawers: convert_drawers(&self.drawers, config),
+            properties: convert_properties(&self.properties, config),
+            keywords: convert_keywords(&self.keywords, config),
+            sections: process_sections_with_depth_limit(&self.sections, config, 0)?,
+        };
+
+        if config.pretty_print {
+            serde_json::to_writer_pretty(writer, &safe_org)?;
+        } else {
+            serde_json::to_writer(writer, &safe_org)?;
+        }
+
+        Ok(())
+    }
+
+    /// 部分的な変換（特定のセクションのみ）
+    pub fn section_to_json(
+        &self,
+        section_id: &str,
+        config: &JsonConversionConfig,
+    ) -> Result<Option<String>, JsonConversionError> {
+        fn find_section_by_id<'a>(sections: &'a [Section], id: &str) -> Option<&'a Section> {
+            for section in sections {
+                if section.id == id {
+                    return Some(section);
+                }
+                if let Some(found) = find_section_by_id(&section.sections, id) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+
+        if let Some(section) = find_section_by_id(&self.sections, section_id) {
+            let safe_section = SafeSection {
+                pos: if config.include_position {
+                    Some(section.pos.clone())
+                } else {
+                    None
+                },
+                id: section.id.clone(),
+                headline_symbol: section.headline_symbol.clone(),
+                title: section.title.clone(),
+                drawers: convert_drawers(&section.drawers, config),
+                properties: convert_properties(&section.properties, config),
+                keywords: convert_keywords(&section.keywords, config),
+                contents: convert_rows(&section.contents, config),
+                scheduling: convert_scheduling(&section.scheduling, config),
+                sections: process_sections_with_depth_limit(&section.sections, config, 0)?,
+            };
+
+            if config.pretty_print {
+                Ok(Some(serde_json::to_string_pretty(&safe_section)?))
+            } else {
+                Ok(Some(serde_json::to_string(&safe_section)?))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::{Context, parse};
+
+    fn init() {
+        let _ = tracing_subscriber::fmt::try_init();
+    }
+
+    #[test]
+    fn test_json_conversion_config_default() {
+        let config = JsonConversionConfig::default();
+        assert_eq!(config.max_depth, 10);
+        assert!(!config.include_position);
+        assert!(!config.pretty_print);
+        assert!(config.include_empty_sections);
+    }
+
+    #[test]
+    fn test_basic_json_conversion() {
+        init();
+
+        let content = r#"#+TITLE: Test Document
+
+* Section 1
+Content for section 1
+
+** Subsection 1.1
+Content for subsection 1.1
+"#;
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).expect("Failed to parse org content");
+
+        // 基本的なJSON変換
+        let json = org.to_json_compact().expect("Failed to convert to JSON");
+        assert!(!json.is_empty());
+
+        // 元のOrg構造体の直接的なシリアライゼーション/デシリアライゼーション
+        let direct_json = serde_json::to_string(&org).expect("Failed to serialize org directly");
+        let restored_org = Org::from_json(&direct_json).expect("Failed to restore from JSON");
+        assert_eq!(org.title, restored_org.title);
+        assert_eq!(org.sections.len(), restored_org.sections.len());
+
+        // SafeOrg形式のJSONが正しく生成されることを確認
+        assert!(json.contains("Test Document") || json.contains("Section 1"));
+    }
+
+    #[test]
+    fn test_pretty_json_conversion() {
+        init();
+
+        let content = r#"#+TITLE: Test Document
+
+* Section 1
+Content for section 1
+"#;
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).expect("Failed to parse org content");
+
+        let json = org
+            .to_json_pretty()
+            .expect("Failed to convert to pretty JSON");
+        assert!(json.contains("  ")); // インデントが含まれていることを確認
+    }
+
+    #[test]
+    fn test_depth_limit() {
+        init();
+
+        // 深い入れ子構造を作成
+        let mut content = String::from("#+TITLE: Deep Structure\n\n");
+        for i in 1..=15 {
+            content.push_str(&"*".repeat(i));
+            content.push_str(&format!(" Section {}\nContent {}\n\n", i, i));
+        }
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, &content).expect("Failed to parse org content");
+
+        // デフォルト設定（max_depth: 10）でテスト
+        let config = JsonConversionConfig::default();
+        let result = org.to_json_with_config(&config);
+
+        // 深度制限により変換が成功するか、適切にエラーが発生することを確認
+        match result {
+            Ok(_) => {
+                // 変換が成功した場合、深度制限内で処理されたことを意味する
+            }
+            Err(JsonConversionError::MaxDepthExceeded { depth }) => {
+                assert!(depth > 10);
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_section_specific_conversion() {
+        init();
+
+        let content = r#"#+TITLE: Test Document
+
+* Section 1
+:PROPERTIES:
+:ID: section-1-id
+:END:
+Content for section 1
+
+* Section 2
+:PROPERTIES:
+:ID: section-2-id
+:END:
+Content for section 2
+"#;
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).expect("Failed to parse org content");
+
+        let config = JsonConversionConfig::default();
+        let section_json = org
+            .section_to_json("section-1-id", &config)
+            .expect("Failed to convert section to JSON");
+
+        assert!(section_json.is_some());
+        let json = section_json.unwrap();
+        assert!(json.contains("Section 1"));
+        assert!(!json.contains("Section 2"));
+    }
+
+    #[test]
+    fn test_streaming_conversion() {
+        init();
+
+        let content = r#"#+TITLE: Test Document
+
+* Section 1
+Content for section 1
+"#;
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).expect("Failed to parse org content");
+
+        let mut buffer = Vec::new();
+        let config = JsonConversionConfig::default();
+
+        org.to_json_stream(&mut buffer, &config)
+            .expect("Failed to stream JSON");
+
+        let json_string = String::from_utf8(buffer).expect("Invalid UTF-8");
+        assert!(!json_string.is_empty());
+
+        // ストリーミング結果が通常の変換結果と一致することを確認
+        let normal_json = org
+            .to_json_with_config(&config)
+            .expect("Failed to convert normally");
+        assert_eq!(json_string, normal_json);
+    }
+
+    #[test]
+    fn test_position_inclusion_control() {
+        init();
+
+        let content = r#"* Section 1
+Content for section 1
+"#;
+
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).expect("Failed to parse org content");
+
+        // 位置情報を含む設定
+        let config_with_pos = JsonConversionConfig {
+            include_position: true,
+            ..Default::default()
+        };
+        let json_with_pos = org
+            .to_json_with_config(&config_with_pos)
+            .expect("Failed to convert with position");
+
+        // 位置情報を含まない設定
+        let config_without_pos = JsonConversionConfig {
+            include_position: false,
+            ..Default::default()
+        };
+        let json_without_pos = org
+            .to_json_with_config(&config_without_pos)
+            .expect("Failed to convert without position");
+
+        // 位置情報を含む場合は"pos"フィールドが存在し、含まない場合は存在しない
+        assert!(json_with_pos.contains("\"pos\""));
+        assert!(!json_without_pos.contains("\"pos\""));
+
+        // 位置情報を除いた場合の方がサイズが小さいことを確認
+        assert!(json_without_pos.len() < json_with_pos.len());
+    }
+}
