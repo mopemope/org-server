@@ -133,6 +133,7 @@ fn write_to_stdout(content: &str) -> Result<()> {
 }
 
 /// 複数のOrgファイルを一括処理する
+#[allow(dead_code)]
 pub fn parse_multiple_files<P: AsRef<Path>>(
     file_paths: &[P],
     output_dir: Option<&Path>,
@@ -165,6 +166,7 @@ pub fn parse_multiple_files<P: AsRef<Path>>(
 }
 
 /// Orgファイルの統計情報を取得
+#[allow(dead_code)]
 pub fn get_org_stats<P: AsRef<Path>>(file_path: P) -> Result<OrgStats> {
     let file_path = file_path.as_ref();
 
@@ -180,6 +182,7 @@ pub fn get_org_stats<P: AsRef<Path>>(file_path: P) -> Result<OrgStats> {
 
 /// Orgファイルの統計情報
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct OrgStats {
     pub title: Option<String>,
     pub total_sections: usize,
@@ -191,6 +194,7 @@ pub struct OrgStats {
 }
 
 impl OrgStats {
+    #[allow(dead_code)]
     fn from_org(org: &Org) -> Self {
         let mut stats = OrgStats {
             title: org.title.clone(),
@@ -206,6 +210,7 @@ impl OrgStats {
         stats
     }
 
+    #[allow(dead_code)]
     fn analyze_sections(&mut self, sections: &[Section], depth: usize) {
         self.total_sections += sections.len();
         self.max_depth = self.max_depth.max(depth);

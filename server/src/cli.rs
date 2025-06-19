@@ -151,7 +151,6 @@ mod tests {
         Cli::print_help(Some("server"));
         Cli::print_help(Some("help"));
         // If we reach here without panicking, the help system works
-        assert!(true);
     }
 
     #[test]
