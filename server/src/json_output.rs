@@ -1,5 +1,5 @@
 use anyhow::{Context as AnyhowContext, Result};
-use org_parser::{parse, Context, JsonConversionConfig, JsonConversionError, Org, Section};
+use org_parser::{Context, JsonConversionConfig, JsonConversionError, Org, Section, parse};
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
@@ -32,14 +32,14 @@ pub fn parse_and_output_json<P: AsRef<Path>, Q: AsRef<Path>>(
     config: JsonOutputConfig,
 ) -> Result<()> {
     let file_path = file_path.as_ref();
-    
+
     info!("Parsing Org file: {}", file_path.display());
-    
+
     // ファイルの存在確認
     if !file_path.exists() {
         anyhow::bail!("File does not exist: {}", file_path.display());
     }
-    
+
     if !file_path.is_file() {
         anyhow::bail!("Path is not a file: {}", file_path.display());
     }
@@ -55,26 +55,30 @@ pub fn parse_and_output_json<P: AsRef<Path>, Q: AsRef<Path>>(
     let org = parse(&mut ctx, &content)
         .with_context(|| format!("Failed to parse Org file: {}", file_path.display()))?;
 
-    info!("Successfully parsed Org file. Sections: {}", org.sections.len());
+    info!(
+        "Successfully parsed Org file. Sections: {}",
+        org.sections.len()
+    );
 
     // JSON変換設定を作成
     let json_config: JsonConversionConfig = config.into();
 
     // JSONに変換
-    let json_output = org
-        .to_json_with_config(&json_config)
-        .map_err(|e| match e {
-            JsonConversionError::MaxDepthExceeded { depth } => {
-                anyhow::anyhow!("Maximum depth exceeded: {}. Consider increasing --max-depth", depth)
-            }
-            JsonConversionError::SerializationError { source } => {
-                anyhow::anyhow!("JSON serialization failed: {}", source)
-            }
-            JsonConversionError::IoError { source } => {
-                anyhow::anyhow!("IO error: {}", source)
-            }
-            _ => anyhow::anyhow!("JSON conversion failed: {}", e),
-        })?;
+    let json_output = org.to_json_with_config(&json_config).map_err(|e| match e {
+        JsonConversionError::MaxDepthExceeded { depth } => {
+            anyhow::anyhow!(
+                "Maximum depth exceeded: {}. Consider increasing --max-depth",
+                depth
+            )
+        }
+        JsonConversionError::SerializationError { source } => {
+            anyhow::anyhow!("JSON serialization failed: {}", source)
+        }
+        JsonConversionError::IoError { source } => {
+            anyhow::anyhow!("IO error: {}", source)
+        }
+        _ => anyhow::anyhow!("JSON conversion failed: {}", e),
+    })?;
 
     debug!("JSON output length: {} bytes", json_output.len());
 
@@ -85,8 +89,7 @@ pub fn parse_and_output_json<P: AsRef<Path>, Q: AsRef<Path>>(
             .with_context(|| format!("Failed to write to file: {}", output_path.display()))?;
         info!("JSON output written to: {}", output_path.display());
     } else {
-        write_to_stdout(&json_output)
-            .with_context(|| "Failed to write to stdout")?;
+        write_to_stdout(&json_output).with_context(|| "Failed to write to stdout")?;
         debug!("JSON output written to stdout");
     }
 
@@ -96,7 +99,7 @@ pub fn parse_and_output_json<P: AsRef<Path>, Q: AsRef<Path>>(
 /// ファイルにJSON出力を書き込む
 fn write_to_file<P: AsRef<Path>>(path: P, content: &str) -> Result<()> {
     let path = path.as_ref();
-    
+
     // 出力ディレクトリが存在しない場合は作成
     if let Some(parent) = path.parent() {
         if !parent.exists() {
@@ -115,15 +118,16 @@ fn write_to_file<P: AsRef<Path>>(path: P, content: &str) -> Result<()> {
 fn write_to_stdout(content: &str) -> Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
-    
-    handle.write_all(content.as_bytes())
+
+    handle
+        .write_all(content.as_bytes())
         .with_context(|| "Failed to write to stdout")?;
-    
-    handle.write_all(b"\n")
+
+    handle
+        .write_all(b"\n")
         .with_context(|| "Failed to write newline to stdout")?;
-    
-    handle.flush()
-        .with_context(|| "Failed to flush stdout")?;
+
+    handle.flush().with_context(|| "Failed to flush stdout")?;
 
     Ok(())
 }
@@ -138,7 +142,7 @@ pub fn parse_multiple_files<P: AsRef<Path>>(
 
     for file_path in file_paths {
         let file_path = file_path.as_ref();
-        
+
         // 出力ファイル名を決定
         let output_path = match output_dir {
             Some(dir) => {
@@ -163,7 +167,7 @@ pub fn parse_multiple_files<P: AsRef<Path>>(
 /// Orgファイルの統計情報を取得
 pub fn get_org_stats<P: AsRef<Path>>(file_path: P) -> Result<OrgStats> {
     let file_path = file_path.as_ref();
-    
+
     let content = fs::read_to_string(file_path)
         .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
@@ -210,7 +214,7 @@ impl OrgStats {
             self.total_keywords += section.keywords.len();
             self.total_properties += section.properties.len();
             self.total_drawers += section.drawers.len();
-            
+
             if !section.scheduling.is_empty() {
                 self.has_scheduling = true;
             }
@@ -247,7 +251,7 @@ Content for subsection 1.1
 "#;
 
         let (_temp_dir, file_path) = create_test_org_file(content);
-        
+
         let config = JsonOutputConfig {
             pretty: false,
             include_position: false,
@@ -271,7 +275,7 @@ Content for section 1
         let (_temp_dir, file_path) = create_test_org_file(content);
         let temp_dir = TempDir::new().unwrap();
         let output_path = temp_dir.path().join("output.json");
-        
+
         let config = JsonOutputConfig {
             pretty: true,
             include_position: false,
@@ -284,7 +288,7 @@ Content for section 1
 
         // 出力ファイルが作成されたことを確認
         assert!(output_path.exists());
-        
+
         // 出力内容を確認
         let output_content = fs::read_to_string(&output_path).unwrap();
         assert!(!output_content.is_empty());
@@ -302,7 +306,12 @@ Content for section 1
 
         let result = parse_and_output_json("nonexistent.org", None::<&str>, config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("File does not exist"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("File does not exist")
+        );
     }
 
     #[test]
@@ -327,9 +336,9 @@ Content for section 2
 "#;
 
         let (_temp_dir, file_path) = create_test_org_file(content);
-        
+
         let stats = get_org_stats(&file_path).unwrap();
-        
+
         assert_eq!(stats.title, Some("Test Document".to_string()));
         assert_eq!(stats.total_sections, 3); // Section 1, Subsection 1.1, Section 2
         assert_eq!(stats.max_depth, 1); // ** is depth 1 (0-indexed)
@@ -345,9 +354,9 @@ Content for section 2
 
         let (_temp_dir1, file_path1) = create_test_org_file(content1);
         let (_temp_dir2, file_path2) = create_test_org_file(content2);
-        
+
         let output_dir = TempDir::new().unwrap();
-        
+
         let config = JsonOutputConfig {
             pretty: false,
             include_position: false,
@@ -355,11 +364,9 @@ Content for section 2
             max_depth: 10,
         };
 
-        let results = parse_multiple_files(
-            &[&file_path1, &file_path2],
-            Some(output_dir.path()),
-            config,
-        ).unwrap();
+        let results =
+            parse_multiple_files(&[&file_path1, &file_path2], Some(output_dir.path()), config)
+                .unwrap();
 
         // 両方のファイルが正常に処理されたことを確認
         assert_eq!(results.len(), 2);

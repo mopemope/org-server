@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::Parser;
 use org_parser::Org;
 use tokio::sync::mpsc;
 use tracing::{debug, info};
@@ -21,8 +22,49 @@ use json_output::{JsonOutputConfig, parse_and_output_json};
 async fn main() -> Result<()> {
     init_tracing();
 
-    let cli = Cli::parse_args();
-    
+    // Manual help handling as a workaround
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && (args[1] == "--help" || args[1] == "-h") {
+        Cli::print_help(None);
+        return Ok(());
+    }
+
+    if args.len() > 1 && (args[1] == "--version" || args[1] == "-V") {
+        println!("org-server 0.1.0");
+        return Ok(());
+    }
+
+    // Handle help subcommand manually
+    if args.len() > 1 && args[1] == "help" {
+        let subcommand = if args.len() > 2 {
+            Some(args[2].as_str())
+        } else {
+            None
+        };
+        Cli::print_help(subcommand);
+        return Ok(());
+    }
+
+    // Handle subcommand help
+    if args.len() > 2 && args[1] == "parse" && (args[2] == "--help" || args[2] == "-h") {
+        Cli::print_help(Some("parse"));
+        return Ok(());
+    }
+
+    if args.len() > 2 && args[1] == "server" && (args[2] == "--help" || args[2] == "-h") {
+        Cli::print_help(Some("server"));
+        return Ok(());
+    }
+
+    // Handle CLI parsing with proper error handling
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => {
+            // For other errors, let clap handle them
+            err.exit();
+        }
+    };
+
     match cli.get_command() {
         Commands::Parse {
             file,
@@ -33,7 +75,7 @@ async fn main() -> Result<()> {
             max_depth,
         } => {
             info!("Running in parse mode for file: {}", file.display());
-            
+
             let json_config = JsonOutputConfig {
                 pretty,
                 include_position,
@@ -45,7 +87,7 @@ async fn main() -> Result<()> {
         }
         Commands::Server { config, port, host } => {
             info!("Running in server mode on {}:{}", host, port);
-            
+
             let config_path = if let Some(path) = config {
                 path
             } else {
@@ -63,19 +105,24 @@ async fn main() -> Result<()> {
             watcher::watch_files(&server_config, senders);
 
             // Use the port from CLI args if provided, otherwise use config
-            let server_port = if port == 3000 { 
-                u16::try_from(server_config.server_port)
-                    .unwrap_or_else(|_| {
-                        eprintln!("Warning: server_port {} is too large for u16, using default 3000", server_config.server_port);
-                        3000
-                    })
-            } else { 
-                port 
+            let server_port = if port == 3000 {
+                u16::try_from(server_config.server_port).unwrap_or_else(|_| {
+                    eprintln!(
+                        "Warning: server_port {} is too large for u16, using default 3000",
+                        server_config.server_port
+                    );
+                    3000
+                })
+            } else {
+                port
             };
             web::run_server(server_port.into()).await?;
         }
+        Commands::Help { subcommand } => {
+            Cli::print_help(subcommand.as_deref());
+        }
     }
-    
+
     Ok(())
 }
 

@@ -17,8 +17,8 @@ mod infinite_loop_test;
 mod stress_test;
 
 pub use json_conversion::{JsonConversionConfig, JsonConversionError};
-pub use parser::{Context, Section};
 pub use parser::Org;
 pub use parser::OrgParser;
 pub use parser::parse;
+pub use parser::{Context, Section};
 pub use reminder::{DEFAULT_REMINDER_INTERVALS, Reminder, ReminderConfig};
