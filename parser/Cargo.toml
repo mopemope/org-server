@@ -11,7 +11,7 @@ serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
 uuid.workspace = true
-regex = { version = "1.5", default-features = false }
+regex = { workspace = true }
 pest = { version = "2", features = ["std"], default-features = false }
 pest_derive = "2"
 thiserror.workspace = true

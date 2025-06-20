@@ -6,10 +6,10 @@ use crate::{
 };
 use anyhow::Result;
 use axum::{
+    Router,
     extract::{Path, Query, State},
     response::Json,
     routing::get,
-    Router,
 };
 use org_parser::JsonConversionConfig;
 use serde::Deserialize;
@@ -141,8 +141,8 @@ async fn get_org_file(
 
     // JSON変換
     let json_string = org.to_json_with_config(&json_config)?;
-    let json_value: serde_json::Value = serde_json::from_str(&json_string)
-        .map_err(|e| ApiError::JsonConversion {
+    let json_value: serde_json::Value =
+        serde_json::from_str(&json_string).map_err(|e| ApiError::JsonConversion {
             source: org_parser::JsonConversionError::SerializationError { source: e },
         })?;
 

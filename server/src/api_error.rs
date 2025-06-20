@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use org_parser::JsonConversionError;
 use serde::{Deserialize, Serialize};
@@ -58,9 +58,10 @@ impl ApiError {
             ApiError::FileResolver { source } => Some(format!("File resolver: {}", source)),
             ApiError::JsonConversion { source } => Some(format!("JSON conversion: {}", source)),
             ApiError::FileParsing { message } => Some(message.clone()),
-            ApiError::InvalidQueryParameter { parameter, value } => {
-                Some(format!("Parameter '{}' has invalid value '{}'", parameter, value))
-            }
+            ApiError::InvalidQueryParameter { parameter, value } => Some(format!(
+                "Parameter '{}' has invalid value '{}'",
+                parameter, value
+            )),
             ApiError::Internal { message } => Some(message.clone()),
             ApiError::Io { source } => Some(format!("IO error: {}", source)),
         }
