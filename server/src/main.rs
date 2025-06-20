@@ -5,8 +5,10 @@ use tokio::sync::mpsc;
 use tracing::{debug, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod api_error;
 mod cli;
 mod config;
+mod file_resolver;
 mod json_output;
 mod notification;
 mod parse;
@@ -116,7 +118,7 @@ async fn main() -> Result<()> {
             } else {
                 port
             };
-            web::run_server(server_port.into()).await?;
+            web::run_server(server_port.into(), server_config).await?;
         }
         Commands::Help { subcommand } => {
             Cli::print_help(subcommand.as_deref());

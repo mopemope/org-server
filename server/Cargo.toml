@@ -15,7 +15,7 @@ tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
-axum = { version = "0.8", features = ["http1", "tokio"], default-features = false }
+axum = { version = "0.8", features = ["http1", "tokio", "json", "query"], default-features = false }
 tokio = { version = "1.0", features = ["fs", "io-util", "rt-multi-thread"] }
 clap = { version = "4", features = ["derive", "std"], default-features = false }
 globmatch = "0.3"
@@ -26,6 +26,9 @@ walkdir = "2"
 futures = { version = "0.3", default-features = false }
 notify-rust = { version = "4", features = ["serde", "zbus"], default-features = false }
 notify = { version = "8", default-features = false }
+thiserror = "2.0"
+tower = "0.5"
 
 [dev-dependencies]
 tempfile = "3.8"
+tower = "0.5"
