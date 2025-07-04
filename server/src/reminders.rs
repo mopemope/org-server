@@ -93,6 +93,16 @@ pub fn scan(config: &Config, tx: &mpsc::Sender<Org>) {
     });
 }
 
+/// 期限切れリマインダーをフィルタリングする関数（テスト用）
+#[cfg(test)]
+fn filter_expired_reminders(reminders: &[Reminder]) -> Vec<Reminder> {
+    reminders
+        .iter()
+        .filter(|r| !r.is_expired())
+        .cloned()
+        .collect()
+}
+
 pub fn start_check(mut rx: mpsc::Receiver<Org>) {
     let _forever = task::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(5));
@@ -104,16 +114,40 @@ pub fn start_check(mut rx: mpsc::Receiver<Org>) {
                     // debug!("start check");
                     let now = Local::now().naive_local();
                     let mut temp = vec![];
+                    let mut expired_reminders = vec![];
+
                     for val in &reminders {
                         if now > val.datetime {
                             // notify
                             let _ = notification::notify("Emacs Org Remainder", &val.title);
                             debug!("notify : {:?}", val);
                             temp.push(val.clone());  // remove entry
+                        } else if val.is_expired() {
+                            // 期限切れリマインダーを削除対象に追加
+                            expired_reminders.push(val.clone());
                         }
                     }
+
+                    // 通知済みリマインダーを削除
                     for val in temp {
                         reminders.remove(&val);
+                    }
+
+                    // 期限切れリマインダーを削除
+                    for expired in expired_reminders {
+                        if reminders.remove(&expired) {
+                            debug!("Removed expired reminder: {:?}", expired);
+                            match &expired.scheduling {
+                                org_parser::Scheduling::Scheduled(_, _, datetime) => {
+                                    warn!("Removed expired SCHEDULED reminder '{}' (scheduled for: {})",
+                                          expired.title, datetime);
+                                }
+                                org_parser::Scheduling::Deadline(_, _, datetime) => {
+                                    warn!("Removed expired DEADLINE reminder '{}' (deadline was: {})",
+                                          expired.title, datetime);
+                                }
+                            }
+                        }
                     }
 
                 }
@@ -124,10 +158,23 @@ pub fn start_check(mut rx: mpsc::Receiver<Org>) {
                             if !res.is_empty() {
                                 let now = Local::now().naive_local();
                                 for r in res {
-                                    if now < r.datetime {
+                                    // 期限切れでない、かつ通知時刻が未来のリマインダーのみ追加
+                                    if now < r.datetime && !r.is_expired() {
                                         let dr = r.clone();
                                         if reminders.insert(r) {
                                             debug!("append reminder: {:?}", &dr);
+                                        }
+                                    } else if r.is_expired() {
+                                        // 期限切れリマインダーはログに記録して追加しない
+                                        match &r.scheduling {
+                                            org_parser::Scheduling::Scheduled(_, _, datetime) => {
+                                                debug!("Skipped expired SCHEDULED reminder '{}' (scheduled for: {})",
+                                                      r.title, datetime);
+                                            }
+                                            org_parser::Scheduling::Deadline(_, _, datetime) => {
+                                                debug!("Skipped expired DEADLINE reminder '{}' (deadline was: {})",
+                                                      r.title, datetime);
+                                            }
                                         }
                                     }
                                 }
@@ -142,4 +189,154 @@ pub fn start_check(mut rx: mpsc::Receiver<Org>) {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Local;
+    use org_parser::{Pos, Reminder, Scheduling};
+    use std::time::Duration;
+
+    fn init() {
+        let _ = tracing_subscriber::fmt::try_init();
+    }
+
+    #[test]
+    fn test_filter_expired_reminders() {
+        init();
+
+        // 過去のSCHEDULED（期限切れ）
+        let expired_scheduled = Reminder {
+            title: "期限切れスケジュール".to_string(),
+            datetime: Local::now().naive_local() - Duration::from_secs(3600), // 1時間前
+            scheduling: Scheduling::Scheduled(
+                Pos::new(0, 0),
+                "期限切れスケジュール".to_string(),
+                "2020-01-01 Wed 10:00".to_string(),
+            ),
+        };
+
+        // 過去のDEADLINE（期限切れ）
+        let expired_deadline = Reminder {
+            title: "期限切れ締切".to_string(),
+            datetime: Local::now().naive_local() - Duration::from_secs(3600), // 1時間前
+            scheduling: Scheduling::Deadline(
+                Pos::new(0, 0),
+                "期限切れ締切".to_string(),
+                "2020-01-01 Wed 23:59".to_string(),
+            ),
+        };
+
+        // 未来のSCHEDULED（有効）
+        let valid_scheduled = Reminder {
+            title: "有効なスケジュール".to_string(),
+            datetime: Local::now().naive_local() + Duration::from_secs(3600), // 1時間後
+            scheduling: Scheduling::Scheduled(
+                Pos::new(0, 0),
+                "有効なスケジュール".to_string(),
+                "2030-01-01 Wed 10:00".to_string(),
+            ),
+        };
+
+        // 未来のDEADLINE（有効）
+        let valid_deadline = Reminder {
+            title: "有効な締切".to_string(),
+            datetime: Local::now().naive_local() + Duration::from_secs(3600), // 1時間後
+            scheduling: Scheduling::Deadline(
+                Pos::new(0, 0),
+                "有効な締切".to_string(),
+                "2030-01-01 Wed 23:59".to_string(),
+            ),
+        };
+
+        let all_reminders = vec![
+            expired_scheduled,
+            expired_deadline,
+            valid_scheduled.clone(),
+            valid_deadline.clone(),
+        ];
+
+        let filtered = filter_expired_reminders(&all_reminders);
+
+        // 期限切れでないリマインダーのみが残ることを確認
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.contains(&valid_scheduled));
+        assert!(filtered.contains(&valid_deadline));
+    }
+
+    #[test]
+    fn test_filter_expired_reminders_empty() {
+        init();
+
+        let empty_reminders: Vec<Reminder> = vec![];
+        let filtered = filter_expired_reminders(&empty_reminders);
+
+        assert_eq!(filtered.len(), 0);
+    }
+
+    #[test]
+    fn test_filter_expired_reminders_all_expired() {
+        init();
+
+        // 全て期限切れのリマインダー
+        let expired_reminders = vec![
+            Reminder {
+                title: "期限切れ1".to_string(),
+                datetime: Local::now().naive_local() - Duration::from_secs(3600),
+                scheduling: Scheduling::Scheduled(
+                    Pos::new(0, 0),
+                    "期限切れ1".to_string(),
+                    "2020-01-01 Wed 10:00".to_string(),
+                ),
+            },
+            Reminder {
+                title: "期限切れ2".to_string(),
+                datetime: Local::now().naive_local() - Duration::from_secs(7200),
+                scheduling: Scheduling::Deadline(
+                    Pos::new(0, 0),
+                    "期限切れ2".to_string(),
+                    "2020-01-01 Wed 23:59".to_string(),
+                ),
+            },
+        ];
+
+        let filtered = filter_expired_reminders(&expired_reminders);
+
+        // 全て期限切れなので、結果は空になる
+        assert_eq!(filtered.len(), 0);
+    }
+
+    #[test]
+    fn test_filter_expired_reminders_all_valid() {
+        init();
+
+        // 全て有効なリマインダー
+        let valid_reminders = vec![
+            Reminder {
+                title: "有効1".to_string(),
+                datetime: Local::now().naive_local() + Duration::from_secs(3600),
+                scheduling: Scheduling::Scheduled(
+                    Pos::new(0, 0),
+                    "有効1".to_string(),
+                    "2030-01-01 Wed 10:00".to_string(),
+                ),
+            },
+            Reminder {
+                title: "有効2".to_string(),
+                datetime: Local::now().naive_local() + Duration::from_secs(7200),
+                scheduling: Scheduling::Deadline(
+                    Pos::new(0, 0),
+                    "有効2".to_string(),
+                    "2030-01-01 Wed 23:59".to_string(),
+                ),
+            },
+        ];
+
+        let filtered = filter_expired_reminders(&valid_reminders);
+
+        // 全て有効なので、全てが残る
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered, valid_reminders);
+    }
 }

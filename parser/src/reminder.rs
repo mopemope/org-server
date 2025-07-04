@@ -23,6 +23,47 @@ impl Hash for Reminder {
     }
 }
 
+impl Reminder {
+    /// リマインダーが期限切れかどうかを判定する
+    /// SCHEDULEDまたはDEADLINEの期限が現在時刻を過ぎている場合にtrueを返す
+    pub fn is_expired(&self) -> bool {
+        let now = Local::now().naive_local();
+
+        match &self.scheduling {
+            Scheduling::Scheduled(_, _, datetime_str) => {
+                // SCHEDULEDの期限チェック
+                if let Some(scheduled_time) = parse_scheduling_datetime(datetime_str) {
+                    return scheduled_time < now;
+                }
+            }
+            Scheduling::Deadline(_, _, datetime_str) => {
+                // DEADLINEの期限チェック
+                if let Some(deadline_time) = parse_scheduling_datetime(datetime_str) {
+                    return deadline_time < now;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+/// スケジューリング文字列をNaiveDateTimeにパースする
+fn parse_scheduling_datetime(datetime_str: &str) -> Option<NaiveDateTime> {
+    // まず時刻付きの形式を試す
+    if let Ok(dt) = NaiveDateTime::parse_from_str(datetime_str, "%F %a %R") {
+        return Some(dt);
+    }
+
+    // 時刻なしの場合はデフォルト時刻（09:00）を追加
+    let datetime_with_time = format!("{datetime_str} 09:00");
+    if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime_with_time, "%F %a %R") {
+        return Some(dt);
+    }
+
+    None
+}
+
 /// デフォルトのリマインダー間隔（分）
 pub const DEFAULT_REMINDER_INTERVALS: &[u32] = &[30, 10, 1];
 
@@ -207,5 +248,92 @@ mod tests {
             assert!(reminders[1].title.contains("30分"));
             assert!(reminders[2].title.contains("5分"));
         }
+    }
+
+    #[test]
+    fn test_is_expired_scheduled() {
+        init();
+
+        // 過去のSCHEDULED（期限切れ）
+        let past_scheduled = Reminder {
+            title: "過去のイベント".to_string(),
+            datetime: Local::now().naive_local() - Duration::from_secs(3600), // 1時間前
+            scheduling: Scheduling::Scheduled(
+                Pos::new(0, 0),
+                "過去のイベント".to_string(),
+                "2020-01-01 Wed 10:00".to_string(),
+            ),
+        };
+        assert!(past_scheduled.is_expired());
+
+        // 未来のSCHEDULED（期限内）
+        let future_scheduled = Reminder {
+            title: "未来のイベント".to_string(),
+            datetime: Local::now().naive_local() + Duration::from_secs(3600), // 1時間後
+            scheduling: Scheduling::Scheduled(
+                Pos::new(0, 0),
+                "未来のイベント".to_string(),
+                "2030-01-01 Wed 10:00".to_string(),
+            ),
+        };
+        assert!(!future_scheduled.is_expired());
+    }
+
+    #[test]
+    fn test_is_expired_deadline() {
+        init();
+
+        // 過去のDEADLINE（期限切れ）
+        let past_deadline = Reminder {
+            title: "過去の締切".to_string(),
+            datetime: Local::now().naive_local() - Duration::from_secs(3600), // 1時間前
+            scheduling: Scheduling::Deadline(
+                Pos::new(0, 0),
+                "過去の締切".to_string(),
+                "2020-01-01 Wed 23:59".to_string(),
+            ),
+        };
+        assert!(past_deadline.is_expired());
+
+        // 未来のDEADLINE（期限内）
+        let future_deadline = Reminder {
+            title: "未来の締切".to_string(),
+            datetime: Local::now().naive_local() + Duration::from_secs(3600), // 1時間後
+            scheduling: Scheduling::Deadline(
+                Pos::new(0, 0),
+                "未来の締切".to_string(),
+                "2030-01-01 Wed 23:59".to_string(),
+            ),
+        };
+        assert!(!future_deadline.is_expired());
+    }
+
+    #[test]
+    fn test_is_expired_date_only() {
+        init();
+
+        // 日付のみ（時刻なし）の過去のSCHEDULED
+        let past_date_only = Reminder {
+            title: "過去の日付のみ".to_string(),
+            datetime: Local::now().naive_local() - Duration::from_secs(86400), // 1日前
+            scheduling: Scheduling::Scheduled(
+                Pos::new(0, 0),
+                "過去の日付のみ".to_string(),
+                "2020-01-01 Wed".to_string(),
+            ),
+        };
+        assert!(past_date_only.is_expired());
+
+        // 日付のみ（時刻なし）の未来のDEADLINE
+        let future_date_only = Reminder {
+            title: "未来の日付のみ".to_string(),
+            datetime: Local::now().naive_local() + Duration::from_secs(86400), // 1日後
+            scheduling: Scheduling::Deadline(
+                Pos::new(0, 0),
+                "未来の日付のみ".to_string(),
+                "2030-01-01 Wed".to_string(),
+            ),
+        };
+        assert!(!future_date_only.is_expired());
     }
 }
