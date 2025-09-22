@@ -22,27 +22,27 @@ async fn scan_reminders(path: &str, tx: mpsc::Sender<Org>) -> Result<()> {
         .filter_map(std::result::Result::ok)
     {
         let path = entry.path().to_owned();
-        if let Some(ext) = path.extension() {
-            if ext == "org" {
-                match parse_org_file(&path).await {
-                    Ok(org) => {
-                        if let Err(err) = tx.send(org).await {
-                            error!(
-                                "Failed to send parsed org data for file {}: {:?}",
-                                path.display(),
-                                err
-                            );
-                            // チャンネルが閉じられている場合は処理を中断
-                            break;
-                        } else {
-                            n += 1;
-                            //debug!("Successfully processed file: {}", path.display());
-                        }
+        if let Some(ext) = path.extension()
+            && ext == "org"
+        {
+            match parse_org_file(&path).await {
+                Ok(org) => {
+                    if let Err(err) = tx.send(org).await {
+                        error!(
+                            "Failed to send parsed org data for file {}: {:?}",
+                            path.display(),
+                            err
+                        );
+                        // チャンネルが閉じられている場合は処理を中断
+                        break;
+                    } else {
+                        n += 1;
+                        //debug!("Successfully processed file: {}", path.display());
                     }
-                    Err(err) => {
-                        error!("Failed to parse org file {}: {:?}", path.display(), err);
-                        errors += 1;
-                    }
+                }
+                Err(err) => {
+                    error!("Failed to parse org file {}: {:?}", path.display(), err);
+                    errors += 1;
                 }
             }
         }

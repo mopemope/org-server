@@ -415,31 +415,31 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 for pair in pair.into_inner() {
                     match pair.as_rule() {
                         Rule::scheduled => {
-                            if let Some(pair) = pair.into_inner().next() {
-                                if let Some(pair) = pair.into_inner().next() {
-                                    let (line, col) = pair.line_col();
-                                    let pos = Pos::new(col, line);
-                                    let sch = Scheduling::Scheduled(
-                                        pos,
-                                        section.title.clone(),
-                                        pair.as_str().to_string(),
-                                    );
-                                    section.scheduling.push(sch);
-                                }
+                            if let Some(pair) = pair.into_inner().next()
+                                && let Some(pair) = pair.into_inner().next()
+                            {
+                                let (line, col) = pair.line_col();
+                                let pos = Pos::new(col, line);
+                                let sch = Scheduling::Scheduled(
+                                    pos,
+                                    section.title.clone(),
+                                    pair.as_str().to_string(),
+                                );
+                                section.scheduling.push(sch);
                             }
                         }
                         Rule::deadline => {
-                            if let Some(pair) = pair.into_inner().next() {
-                                if let Some(pair) = pair.into_inner().next() {
-                                    let (line, col) = pair.line_col();
-                                    let pos = Pos::new(col, line);
-                                    let sch = Scheduling::Deadline(
-                                        pos,
-                                        section.title.clone(),
-                                        pair.as_str().to_string(),
-                                    );
-                                    section.scheduling.push(sch);
-                                }
+                            if let Some(pair) = pair.into_inner().next()
+                                && let Some(pair) = pair.into_inner().next()
+                            {
+                                let (line, col) = pair.line_col();
+                                let pos = Pos::new(col, line);
+                                let sch = Scheduling::Deadline(
+                                    pos,
+                                    section.title.clone(),
+                                    pair.as_str().to_string(),
+                                );
+                                section.scheduling.push(sch);
                             }
                         }
                         _ => {}

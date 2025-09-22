@@ -171,18 +171,18 @@ fn parse_datetime_and_create_reminder(
     now: NaiveDateTime,
 ) -> Option<Vec<Reminder>> {
     // まず時刻付きの形式を試す
-    if let Ok(dt) = NaiveDateTime::parse_from_str(datetime, "%F %a %R") {
-        if dt > now {
-            return Some(create_reminder_with_config(dt, sch, config));
-        }
+    if let Ok(dt) = NaiveDateTime::parse_from_str(datetime, "%F %a %R")
+        && dt > now
+    {
+        return Some(create_reminder_with_config(dt, sch, config));
     }
 
     // 時刻なしの場合はデフォルト時刻（09:00）を追加
     let datetime_with_time = format!("{datetime} 09:00");
-    if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime_with_time, "%F %a %R") {
-        if dt > now {
-            return Some(create_reminder_with_config(dt, sch, config));
-        }
+    if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime_with_time, "%F %a %R")
+        && dt > now
+    {
+        return Some(create_reminder_with_config(dt, sch, config));
     }
 
     None

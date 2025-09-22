@@ -101,11 +101,11 @@ fn write_to_file<P: AsRef<Path>>(path: P, content: &str) -> Result<()> {
     let path = path.as_ref();
 
     // 出力ディレクトリが存在しない場合は作成
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
     }
 
     fs::write(path, content)

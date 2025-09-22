@@ -65,12 +65,12 @@ impl OrgWatcher {
 
             match res {
                 Ok(event) => {
-                    if let Some(old_event) = prev_event {
-                        if old_event == event {
-                            // same event skip
-                            prev_event = Some(event.clone());
-                            continue;
-                        }
+                    if let Some(old_event) = prev_event
+                        && old_event == event
+                    {
+                        // same event skip
+                        prev_event = Some(event.clone());
+                        continue;
                     }
                     prev_event = Some(event.clone());
                     self.notify(&event).await;
