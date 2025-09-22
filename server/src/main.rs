@@ -10,6 +10,7 @@ mod cli;
 mod config;
 mod file_resolver;
 mod json_output;
+mod mcp;
 mod notification;
 mod parse;
 mod reminders;
@@ -19,6 +20,8 @@ mod web;
 
 use cli::{Cli, Commands};
 use json_output::{JsonOutputConfig, parse_and_output_json};
+use mcp::start_mcp_server;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -99,12 +102,22 @@ async fn main() -> Result<()> {
             debug!("load config path: {:?}", config_path);
             let server_config = config::parse_config(&config_path.to_string_lossy())?;
 
+            let file_resolver = Arc::new(file_resolver::FileResolver::new(&server_config));
+
             let mut senders: Vec<mpsc::Sender<Org>> = Vec::new();
 
             // reminder
             check_reminder(&server_config, &mut senders);
 
             watcher::watch_files(&server_config, senders);
+
+            let _mcp_handle = start_mcp_server(
+                &server_config.mcp_host,
+                server_config.mcp_port,
+                Arc::clone(&file_resolver),
+                &server_config,
+            )
+            .await?;
 
             // Use the port from CLI args if provided, otherwise use config
             let server_port = if port == 3000 {
@@ -118,7 +131,7 @@ async fn main() -> Result<()> {
             } else {
                 port
             };
-            web::run_server(server_port.into(), server_config).await?;
+            web::run_server(server_port.into(), server_config, file_resolver).await?;
         }
         Commands::Help { subcommand } => {
             Cli::print_help(subcommand.as_deref());

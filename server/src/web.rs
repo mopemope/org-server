@@ -60,8 +60,11 @@ impl OrgFileQuery {
 }
 
 /// サーバー起動
-pub async fn run_server(port: u32, config: Config) -> Result<()> {
-    let file_resolver = Arc::new(FileResolver::new(&config));
+pub async fn run_server(
+    port: u32,
+    _config: Config,
+    file_resolver: Arc<FileResolver>,
+) -> Result<()> {
     let app_state = AppState { file_resolver };
 
     // build our application with routes
@@ -180,6 +183,8 @@ mod tests {
         Config {
             org_path: org_paths,
             server_port: 3000,
+            mcp_host: "127.0.0.1".to_string(),
+            mcp_port: 3001,
         }
     }
 
