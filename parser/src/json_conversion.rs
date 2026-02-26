@@ -1,6 +1,6 @@
 use crate::parser::{
     CheckboxState, CodeBlock, Content, Drawer, Keyword, ListItem, ListKind, Org, PlainList, Pos,
-    Properties, Property, Row, Scheduling, Section,
+    Properties, Property, Row, Scheduling, Section, Table, TableRow,
 };
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -95,6 +95,7 @@ fn process_sections_with_depth_limit(
             contents: convert_rows(&section.contents, config),
             code_blocks: convert_code_blocks(&section.code_blocks, config),
             lists: convert_lists(&section.lists, config),
+            tables: convert_tables(&section.tables, config),
             scheduling: convert_scheduling(&section.scheduling, config),
             sections: process_sections_with_depth_limit(
                 &section.sections,
@@ -313,6 +314,43 @@ fn convert_lists(lists: &[PlainList], config: &JsonConversionConfig) -> Vec<Safe
         .collect()
 }
 
+/// 位置情報を制御可能なTableRow
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
+enum SafeTableRow {
+    Standard(Vec<String>),
+    Rule,
+}
+
+/// 位置情報を制御可能なTable
+#[derive(Debug, Serialize, Deserialize)]
+struct SafeTable {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    rows: Vec<SafeTableRow>,
+}
+
+fn convert_tables(tables: &[Table], config: &JsonConversionConfig) -> Vec<SafeTable> {
+    tables
+        .iter()
+        .map(|table| SafeTable {
+            pos: if config.include_position {
+                Some(table.pos.clone())
+            } else {
+                None
+            },
+            rows: table
+                .rows
+                .iter()
+                .map(|row| match row {
+                    TableRow::Standard(cells) => SafeTableRow::Standard(cells.clone()),
+                    TableRow::Rule => SafeTableRow::Rule,
+                })
+                .collect(),
+        })
+        .collect()
+}
+
 /// 位置情報を制御可能なDrawer
 #[derive(Debug, Serialize, Deserialize)]
 struct SafeDrawer {
@@ -422,6 +460,8 @@ struct SafeSection {
     code_blocks: Vec<SafeCodeBlock>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     lists: Vec<SafePlainList>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    tables: Vec<SafeTable>,
     scheduling: Vec<SafeScheduling>,
     sections: Vec<SafeSection>,
 }
@@ -557,6 +597,7 @@ impl Org {
                 contents: convert_rows(&section.contents, config),
                 code_blocks: convert_code_blocks(&section.code_blocks, config),
                 lists: convert_lists(&section.lists, config),
+                tables: convert_tables(&section.tables, config),
                 scheduling: convert_scheduling(&section.scheduling, config),
                 sections: process_sections_with_depth_limit(&section.sections, config, 0)?,
             };
@@ -740,6 +781,21 @@ fn convert_safe_section_to_section(safe_section: SafeSection) -> Section {
                         kind: item.kind,
                         text: item.text,
                         description_term: item.description_term,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        tables: safe_section
+            .tables
+            .into_iter()
+            .map(|table| Table {
+                pos: table.pos.unwrap_or_default(),
+                rows: table
+                    .rows
+                    .into_iter()
+                    .map(|row| match row {
+                        SafeTableRow::Standard(cells) => TableRow::Standard(cells),
+                        SafeTableRow::Rule => TableRow::Rule,
                     })
                     .collect(),
             })

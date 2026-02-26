@@ -196,6 +196,40 @@ impl Display for PlainListDisplay<'_> {
     }
 }
 
+pub struct TableDisplay<'a> {
+    pub inner: &'a parser::Table,
+}
+
+impl std::fmt::Display for TableDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (i, row) in self.inner.rows.iter().enumerate() {
+            match row {
+                parser::TableRow::Standard(cells) => {
+                    write!(f, "|")?;
+                    for cell in cells {
+                        write!(f, " {} |", cell)?;
+                    }
+                }
+                parser::TableRow::Rule => {
+                    // Fallback to generic hrule, since original spacing isn't preserved
+                    // in this basic representation.
+                    write!(f, "|---|")?;
+                }
+            }
+            if i < self.inner.rows.len() - 1 {
+                writeln!(f)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Display for TableDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
 pub struct SectionDisplay<'a> {
     pub inner: &'a parser::Section,
 }
@@ -221,6 +255,9 @@ impl std::fmt::Display for SectionDisplay<'_> {
         }
         for list in &self.inner.lists {
             contents.push(Box::new(list.display()));
+        }
+        for table in &self.inner.tables {
+            contents.push(Box::new(table.display()));
         }
         for sec in &self.inner.sections {
             contents.push(Box::new(sec.display()));

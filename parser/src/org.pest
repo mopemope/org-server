@@ -96,6 +96,13 @@ list_item = {
 
 plain_list = { (list_item ~ newline)+ }
 
+// Table
+table_sep   = _{ "|" }
+table_cell  =  { (!("|" | newline) ~ ANY)* }
+table_row   =  { sp* ~ table_sep ~ table_cell ~ (table_sep ~ table_cell)* ~ table_sep? ~ sp* }
+table_hrule =  { sp* ~ table_sep ~ ("-" | "+") ~ ("-" | "+" | "|" | sp)* }
+table       =  { ((table_hrule | table_row) ~ newline)+ }
+
 tags      =  { ":" ~ tag_inner+ ~ ":" }
 tag_inner = _{ tag ~ (":" ~ tag)* }
 tag       = ${
@@ -133,6 +140,7 @@ section_meta = _{
   | src_block ~ newline*
   | keyword ~ newline*
   | plain_list ~ newline*
+  | table ~ newline*
 }
 section      =  {
     headline ~ newline+ ~ (section_meta | section_content)*

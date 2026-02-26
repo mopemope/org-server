@@ -17,10 +17,10 @@ mod infinite_loop_test;
 mod stress_test;
 
 pub use json_conversion::{JsonConversionConfig, JsonConversionError};
-pub use parser::Org;
 pub use parser::OrgParser;
 pub use parser::parse;
 pub use parser::{
-    CheckboxState, CodeBlock, Context, ListItem, ListKind, PlainList, Pos, Scheduling, Section,
+    CheckboxState, CodeBlock, Content, Context, Drawer, Keyword, ListItem, ListKind, Org,
+    PlainList, Pos, Properties, Property, Row, Scheduling, Section, Table, TableRow,
 };
 pub use reminder::{DEFAULT_REMINDER_INTERVALS, Reminder, ReminderConfig};

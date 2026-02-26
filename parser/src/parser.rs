@@ -262,6 +262,26 @@ impl PlainList {
     }
 }
 
+/// A row in a table, either a standard data row or a horizontal rule (separator)
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum TableRow {
+    Standard(Vec<String>),
+    Rule,
+}
+
+/// A table containing multiple rows
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct Table {
+    pub pos: Pos,
+    pub rows: Vec<TableRow>,
+}
+
+impl Table {
+    pub const fn display(&self) -> display::TableDisplay<'_> {
+        display::TableDisplay { inner: self }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Row {
     pub pos: Pos,
@@ -289,6 +309,7 @@ pub struct Section {
     pub contents: Vec<Row>,
     pub code_blocks: Vec<CodeBlock>,
     pub lists: Vec<PlainList>,
+    pub tables: Vec<Table>,
     pub sections: Vec<Section>,
     pub scheduling: Vec<Scheduling>,
 }
@@ -327,6 +348,7 @@ impl Default for Section {
             contents: Vec::default(),
             code_blocks: Vec::default(),
             lists: Vec::default(),
+            tables: Vec::default(),
             sections: Vec::default(),
             scheduling: Vec::default(),
         }
@@ -507,6 +529,40 @@ fn parse_plain_list(pair: Pair<'_, Rule>) -> PlainList {
     list
 }
 
+fn parse_table(pair: Pair<'_, Rule>) -> Table {
+    let mut table = Table::default();
+    let (line, col) = pair.line_col();
+    table.pos = Pos::new(col, line);
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::table_row => {
+                let mut cells = Vec::new();
+                let row_str = inner.as_str().trim_end();
+                let ends_with_pipe = row_str.ends_with('|');
+
+                for cell in inner.into_inner() {
+                    if cell.as_rule() == Rule::table_cell {
+                        cells.push(cell.as_str().trim().to_string());
+                    }
+                }
+
+                // Pestの貪欲パースにより、末尾が '|' の場合は余分な空セルが生成されるため取り除く
+                if ends_with_pipe && cells.last().map(|s| s.as_str()) == Some("") {
+                    cells.pop();
+                }
+
+                table.rows.push(TableRow::Standard(cells));
+            }
+            Rule::table_hrule => {
+                table.rows.push(TableRow::Rule);
+            }
+            _ => {}
+        }
+    }
+    table
+}
+
 fn parse_src_block(pair: Pair<'_, Rule>) -> CodeBlock {
     let mut code_block = CodeBlock::default();
     let (line, col) = pair.line_col();
@@ -660,6 +716,10 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
             Rule::plain_list => {
                 let list = parse_plain_list(pair);
                 section.lists.push(list);
+            }
+            Rule::table => {
+                let table = parse_table(pair);
+                section.tables.push(table);
             }
             Rule::section => {
                 let sec = parse_section(ctx, pair);
@@ -1649,8 +1709,6 @@ CONTENT2
         let org = parse(&mut ctx, content).unwrap();
         assert_eq!(1, org.sections.len());
         let sec = &org.sections[0];
-        assert_eq!(1, org.sections.len());
-        let sec = &org.sections[0];
         assert!(sec.todo_status.is_none());
         assert_eq!("Regular heading", sec.title);
     }
@@ -1734,5 +1792,84 @@ CONTENT2
         assert!(displayed.contains("- Item 1"));
         assert!(displayed.contains("- [X] Done"));
         assert!(displayed.contains("- Term :: Info"));
+    }
+
+    #[test]
+    fn test_table_parsing() {
+        init();
+        let content = "
+* Table Test
+| Name | Age | Group |
+|------+-----+-------|
+| Bob  | 20  | A     |
+| Alice| 25  | B     |
+";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+
+        println!("{:#?}", org.sections[0].tables);
+        assert_eq!(1, org.sections.len());
+
+        // テーブルが1つあることを確認
+        assert_eq!(1, org.sections[0].tables.len());
+        let table = &org.sections[0].tables[0];
+
+        // 4行あることを確認（ヘッダー1行、区切り1行、データ2行）
+        assert_eq!(4, table.rows.len());
+
+        // 1行目
+        if let TableRow::Standard(cells) = &table.rows[0] {
+            assert_eq!(3, cells.len());
+            assert_eq!("Name", cells[0]);
+            assert_eq!("Age", cells[1]);
+            assert_eq!("Group", cells[2]);
+        } else {
+            panic!("Expected Standard row");
+        }
+
+        // 2行目
+        assert_eq!(TableRow::Rule, table.rows[1]);
+
+        // 3行目
+        if let TableRow::Standard(cells) = &table.rows[2] {
+            assert_eq!(3, cells.len());
+            assert_eq!("Bob", cells[0]);
+            assert_eq!("20", cells[1]);
+            assert_eq!("A", cells[2]);
+        } else {
+            panic!("Expected Standard row");
+        }
+    }
+
+    #[test]
+    fn test_table_parsing_edge_cases() {
+        init();
+        let content = "
+* Edge Case
+| A | B |   |
+|   |   |   |
+";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let table = &org.sections[0].tables[0];
+        assert_eq!(2, table.rows.len());
+
+        if let TableRow::Standard(cells) = &table.rows[0] {
+            assert_eq!(3, cells.len(), "Expected 3 cells in first row");
+            assert_eq!("A", cells[0]);
+            assert_eq!("B", cells[1]);
+            assert_eq!("", cells[2]);
+        } else {
+            panic!("Expected Standard row");
+        }
+
+        if let TableRow::Standard(cells) = &table.rows[1] {
+            assert_eq!(3, cells.len(), "Expected 3 cells in second row (all empty)");
+            assert_eq!("", cells[0]);
+            assert_eq!("", cells[1]);
+            assert_eq!("", cells[2]);
+        } else {
+            panic!("Expected Standard row");
+        }
     }
 }
