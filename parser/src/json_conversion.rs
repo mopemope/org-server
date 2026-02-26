@@ -339,6 +339,7 @@ struct SafeOrg {
     properties: Vec<SafeProperties>,
     keywords: Vec<SafeKeyword>,
     sections: Vec<SafeSection>,
+    scheduling: Vec<SafeScheduling>,
 }
 
 /// Org構造体のJSON変換機能を拡張
@@ -356,6 +357,7 @@ impl Org {
             properties: convert_properties(&self.properties, config),
             keywords: convert_keywords(&self.keywords, config),
             sections: process_sections_with_depth_limit(&self.sections, config, 0)?,
+            scheduling: convert_scheduling(&self.scheduling, config),
         };
 
         if config.pretty_print {
@@ -409,6 +411,7 @@ impl Org {
             properties: convert_properties(&self.properties, config),
             keywords: convert_keywords(&self.keywords, config),
             sections: process_sections_with_depth_limit(&self.sections, config, 0)?,
+            scheduling: convert_scheduling(&self.scheduling, config),
         };
 
         if config.pretty_print {
@@ -492,6 +495,11 @@ fn convert_safe_org_to_org(safe_org: SafeOrg) -> Org {
             .sections
             .into_iter()
             .map(convert_safe_section_to_section)
+            .collect(),
+        scheduling: safe_org
+            .scheduling
+            .into_iter()
+            .map(convert_safe_scheduling_to_scheduling)
             .collect(),
     }
 }

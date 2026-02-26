@@ -32,6 +32,7 @@ pub struct Org {
     pub properties: Vec<Properties>,
     pub keywords: Vec<Keyword>,
     pub sections: Vec<Section>,
+    pub scheduling: Vec<Scheduling>,
 }
 
 impl Org {
@@ -45,12 +46,22 @@ impl Org {
             properties: Vec::new(),
             keywords: Vec::new(),
             sections: Vec::new(),
+            scheduling: Vec::new(),
         }
     }
 
     #[must_use]
     pub fn get_reminders(&self) -> Vec<Reminder> {
         let mut res = vec![];
+
+        let config = crate::ReminderConfig::default();
+        for sch in &self.scheduling {
+            if let Some(mut reminders) = crate::reminder::convert_reminder_with_config(sch, &config)
+            {
+                res.append(&mut reminders);
+            }
+        }
+
         for sec in &self.sections {
             let mut reminders = get_reminders(sec);
             if !reminders.is_empty() {
@@ -366,6 +377,42 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
     kw
 }
 
+fn parse_scheduling_items(pair: Pair<'_, Rule>, title: String) -> Vec<Scheduling> {
+    let mut schedulings = Vec::new();
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::scheduled => {
+                if let Some(pair) = pair.into_inner().next()
+                    && let Some(pair) = pair.into_inner().next()
+                {
+                    let (line, col) = pair.line_col();
+                    let pos = Pos::new(col, line);
+                    schedulings.push(Scheduling::Scheduled(
+                        pos,
+                        title.clone(),
+                        pair.as_str().to_string(),
+                    ));
+                }
+            }
+            Rule::deadline => {
+                if let Some(pair) = pair.into_inner().next()
+                    && let Some(pair) = pair.into_inner().next()
+                {
+                    let (line, col) = pair.line_col();
+                    let pos = Pos::new(col, line);
+                    schedulings.push(Scheduling::Deadline(
+                        pos,
+                        title.clone(),
+                        pair.as_str().to_string(),
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+    schedulings
+}
+
 #[allow(clippy::too_many_lines)]
 fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     let mut section: Section = Section::default();
@@ -412,39 +459,8 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                 section.keywords.push(kw);
             }
             Rule::scheduling => {
-                for pair in pair.into_inner() {
-                    match pair.as_rule() {
-                        Rule::scheduled => {
-                            if let Some(pair) = pair.into_inner().next()
-                                && let Some(pair) = pair.into_inner().next()
-                            {
-                                let (line, col) = pair.line_col();
-                                let pos = Pos::new(col, line);
-                                let sch = Scheduling::Scheduled(
-                                    pos,
-                                    section.title.clone(),
-                                    pair.as_str().to_string(),
-                                );
-                                section.scheduling.push(sch);
-                            }
-                        }
-                        Rule::deadline => {
-                            if let Some(pair) = pair.into_inner().next()
-                                && let Some(pair) = pair.into_inner().next()
-                            {
-                                let (line, col) = pair.line_col();
-                                let pos = Pos::new(col, line);
-                                let sch = Scheduling::Deadline(
-                                    pos,
-                                    section.title.clone(),
-                                    pair.as_str().to_string(),
-                                );
-                                section.scheduling.push(sch);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
+                let schedulings = parse_scheduling_items(pair, section.title.clone());
+                section.scheduling.extend(schedulings);
             }
             Rule::section_text_block => {
                 let mut row: Row = Row::default();
@@ -520,6 +536,12 @@ pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
                         org.title = Some(kw.value.to_string());
                     }
                     org.keywords.push(kw);
+                }
+                Rule::scheduling => {
+                    // For root-level scheduling, use the org's title if available, otherwise an empty string
+                    let title_or_description = org.title.clone().unwrap_or_default();
+                    let schedulings = parse_scheduling_items(pair, title_or_description);
+                    org.scheduling.extend(schedulings);
                 }
                 Rule::section => {
                     let sec = parse_section(ctx, pair); // TODO parse src block
@@ -1206,8 +1228,8 @@ TEST4
 #+STARTUP: overview
 
 * SECTION 1
-SCHEDULED: <2025-12-03 Wed 12:34>
-DEADLINE: <2025-12-03 Wed 10:30>
+SCHEDULED: <2035-12-03 Wed 12:34>
+DEADLINE: <2035-12-03 Wed 10:30>
 #+KEYWORD1: title1
 :PROPERTIES:
 :ID: 461e7f4a-5467-4e1b-baed-517a02c00b9c

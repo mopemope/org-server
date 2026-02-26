@@ -1,6 +1,6 @@
 mod display;
 mod json_conversion;
-mod movable;
+
 mod parser;
 mod reminder;
 

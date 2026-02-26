@@ -119,7 +119,7 @@ pub fn start_check(mut rx: mpsc::Receiver<Org>) {
                     for val in &reminders {
                         if now > val.datetime {
                             // notify
-                            let _ = notification::notify("Emacs Org Remainder", &val.title);
+                            let _ = notification::notify("Emacs Org Reminder", &val.title);
                             debug!("notify : {:?}", val);
                             temp.push(val.clone());  // remove entry
                         } else if val.is_expired() {
@@ -154,10 +154,17 @@ pub fn start_check(mut rx: mpsc::Receiver<Org>) {
                 data = rx.recv() => {
                     match data {
                         Some(org) => {
+                            if let Some(filename) = &org.filename {
+                                // Orgファイルのパスに紐づく既存のリマインダーを一旦すべて取り除く
+                                reminders.retain(|r| r.filename.as_ref() != Some(filename));
+                            }
+
                             let res = org.get_reminders();
                             if !res.is_empty() {
                                 let now = Local::now().naive_local();
-                                for r in res {
+                                for mut r in res {
+                                    r.filename = org.filename.clone();
+
                                     // 期限切れでない、かつ通知時刻が未来のリマインダーのみ追加
                                     if now < r.datetime && !r.is_expired() {
                                         let dr = r.clone();
@@ -215,6 +222,7 @@ mod tests {
                 "期限切れスケジュール".to_string(),
                 "2020-01-01 Wed 10:00".to_string(),
             ),
+            filename: None,
         };
 
         // 過去のDEADLINE（期限切れ）
@@ -226,6 +234,7 @@ mod tests {
                 "期限切れ締切".to_string(),
                 "2020-01-01 Wed 23:59".to_string(),
             ),
+            filename: None,
         };
 
         // 未来のSCHEDULED（有効）
@@ -237,6 +246,7 @@ mod tests {
                 "有効なスケジュール".to_string(),
                 "2030-01-01 Wed 10:00".to_string(),
             ),
+            filename: None,
         };
 
         // 未来のDEADLINE（有効）
@@ -248,6 +258,7 @@ mod tests {
                 "有効な締切".to_string(),
                 "2030-01-01 Wed 23:59".to_string(),
             ),
+            filename: None,
         };
 
         let all_reminders = vec![
@@ -289,6 +300,7 @@ mod tests {
                     "期限切れ1".to_string(),
                     "2020-01-01 Wed 10:00".to_string(),
                 ),
+                filename: None,
             },
             Reminder {
                 title: "期限切れ2".to_string(),
@@ -298,6 +310,7 @@ mod tests {
                     "期限切れ2".to_string(),
                     "2020-01-01 Wed 23:59".to_string(),
                 ),
+                filename: None,
             },
         ];
 
@@ -321,6 +334,7 @@ mod tests {
                     "有効1".to_string(),
                     "2030-01-01 Wed 10:00".to_string(),
                 ),
+                filename: None,
             },
             Reminder {
                 title: "有効2".to_string(),
@@ -330,6 +344,7 @@ mod tests {
                     "有効2".to_string(),
                     "2030-01-01 Wed 23:59".to_string(),
                 ),
+                filename: None,
             },
         ];
 

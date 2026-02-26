@@ -62,7 +62,7 @@ impl OrgMcpServer {
         limit: usize,
     ) -> AnyResult<Vec<SearchMatch>> {
         const MAX_MATCHES: usize = 100;
-        let limit = limit.min(MAX_MATCHES).max(1);
+        let limit = limit.clamp(1, MAX_MATCHES);
         let needle = if case_sensitive {
             query.to_string()
         } else {
@@ -216,15 +216,17 @@ impl OrgMcpServer {
 #[tool_handler]
 impl rmcp::ServerHandler for OrgMcpServer {
     fn get_info(&self) -> ServerInfo {
-        let mut info = ServerInfo::default();
-        info.capabilities = ServerCapabilities::builder().enable_tools().build();
-        info.server_info = Implementation {
-            name: "org-server-mcp".into(),
-            title: Some("Org Server MCP".into()),
-            version: env!("CARGO_PKG_VERSION").into(),
-            icons: None,
-            website_url: None,
+        let mut info = ServerInfo {
+            server_info: Implementation {
+                name: "org-server-mcp".into(),
+                title: Some("Org Server MCP".into()),
+                version: env!("CARGO_PKG_VERSION").into(),
+                icons: None,
+                website_url: None,
+            },
+            ..Default::default()
         };
+        info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.instructions = Some("Search and inspect Org-mode files managed by org-server.".into());
         info
     }

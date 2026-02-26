@@ -112,6 +112,18 @@ impl OrgWatcher {
                     }
                 }
             }
+            EventKind::Remove(_) => {
+                for p in &event.paths {
+                    let org = Org {
+                        filename: Some(p.to_string_lossy().to_string()),
+                        ..Default::default()
+                    };
+                    // Send an empty Org with just the filename to indicate deletion
+                    for sender in &self.senders {
+                        let _ = sender.send(org.clone()).await;
+                    }
+                }
+            }
             _ => {
                 // debug!("{:?}", event);
             }
