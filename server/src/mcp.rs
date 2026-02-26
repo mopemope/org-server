@@ -14,7 +14,9 @@ use rmcp::{
     tool, tool_handler, tool_router,
     transport::{SseServer, sse_server::SseServerConfig},
 };
+use std::collections::HashMap;
 use tokio::fs;
+use tokio::sync::{RwLock, mpsc::Receiver}; // Added Receiver, RwLock
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
@@ -27,8 +29,9 @@ use crate::{
 #[derive(Clone)]
 pub struct OrgMcpServer {
     file_resolver: Arc<FileResolver>,
-    org_paths: Arc<Vec<PathBuf>>,
+    org_paths: Vec<PathBuf>, // Changed from Arc<Vec<PathBuf>>
     tool_router: ToolRouter<Self>,
+    state: Arc<RwLock<HashMap<PathBuf, org_parser::Org>>>, // Added
 }
 
 impl OrgMcpServer {
@@ -41,8 +44,9 @@ impl OrgMcpServer {
 
         Self {
             file_resolver,
-            org_paths: Arc::new(org_paths),
+            org_paths, // No longer Arc::new
             tool_router: Self::tool_router(),
+            state: Arc::new(RwLock::new(HashMap::new())), // Initialized
         }
     }
 
@@ -80,29 +84,43 @@ impl OrgMcpServer {
                 }
 
                 let path = entry.into_path();
-                let Ok(contents) = fs::read_to_string(&path).await else {
-                    warn!(file = %path.display(), "Failed to read org file while searching");
+                let Ok(file) = tokio::fs::File::open(&path).await else {
+                    warn!(file = %path.display(), "Failed to open org file while searching");
                     continue;
                 };
 
+                // Use BufReader to prevent OOM on very large org files
+                let mut reader = tokio::io::BufReader::new(file);
                 let relative = self.resolve_relative_path(&path);
 
-                for (idx, line) in contents.lines().enumerate() {
+                let mut line_buf = String::new();
+                let mut idx = 1;
+
+                use tokio::io::AsyncBufReadExt;
+                while let Ok(bytes) = reader.read_line(&mut line_buf).await {
+                    if bytes == 0 {
+                        break; // EOF
+                    }
+
                     let haystack = if case_sensitive {
-                        line.to_string()
+                        line_buf.to_string()
                     } else {
-                        line.to_lowercase()
+                        line_buf.to_lowercase()
                     };
+
                     if haystack.contains(&needle) {
                         matches.push(SearchMatch {
                             file: relative.clone(),
-                            line: idx + 1,
-                            snippet: line.trim().to_string(),
+                            line: idx,
+                            snippet: line_buf.trim().to_string(),
                         });
                         if matches.len() >= limit {
                             break 'path_loop;
                         }
                     }
+
+                    line_buf.clear(); // Reuse the string allocation
+                    idx += 1;
                 }
 
                 if matches.len() >= limit {
@@ -115,23 +133,13 @@ impl OrgMcpServer {
         Ok(matches)
     }
 
-    /// Walk all managed org files and parse them, yielding (Org, Path) pairs.
+    /// Walk all managed org files by reading from the in-memory cache.
     async fn walk_org_files(&self) -> Vec<(org_parser::Org, PathBuf)> {
-        let mut results = Vec::new();
-        for base in self.org_paths.iter() {
-            for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
-                if !entry.file_type().is_file() {
-                    continue;
-                }
-                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("org") {
-                    continue;
-                }
-                if let Ok(org) = crate::parse::parse_org_file(entry.path()).await {
-                    results.push((org, entry.into_path()));
-                }
-            }
-        }
-        results
+        let state = self.state.read().await;
+        state
+            .iter()
+            .map(|(path, org)| (org.clone(), path.clone()))
+            .collect::<Vec<(org_parser::Org, PathBuf)>>()
     }
 }
 
@@ -150,9 +158,25 @@ pub async fn start_mcp_server(
     port: u16,
     file_resolver: Arc<FileResolver>,
     config: &Config,
+    mut mcp_rx: Receiver<org_parser::Org>,
 ) -> AnyResult<McpServerHandle> {
     let bind: SocketAddr = format!("{}:{}", host, port).parse()?;
     let handler = OrgMcpServer::new(file_resolver.clone(), config);
+    let state_ref: Arc<RwLock<HashMap<PathBuf, org_parser::Org>>> = Arc::clone(&handler.state);
+
+    tokio::spawn(async move {
+        while let Some(org) = mcp_rx.recv().await {
+            if let Some(filename) = &org.filename {
+                let path = PathBuf::from(filename);
+                // Watcher sends a mostly empty Org with just the filename for deletions
+                if org.sections.is_empty() && org.keywords.is_empty() && org.properties.is_empty() {
+                    state_ref.write().await.remove(&path);
+                } else {
+                    state_ref.write().await.insert(path, org);
+                }
+            }
+        }
+    });
 
     let sse_config = SseServerConfig {
         bind,

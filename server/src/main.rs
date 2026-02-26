@@ -68,6 +68,12 @@ async fn main() -> Result<()> {
             // reminder
             check_reminder(&server_config, &mut senders);
 
+            // mcp cache integration
+            let (mcp_tx, mcp_rx) = mpsc::channel(1024);
+            senders.push(mcp_tx.clone());
+            // perform an initial scan to populate the MCP cache before the server starts
+            reminders::scan(&server_config, &mcp_tx);
+
             watcher::watch_files(&server_config, senders);
 
             let _mcp_handle = start_mcp_server(
@@ -75,6 +81,7 @@ async fn main() -> Result<()> {
                 server_config.mcp_port,
                 Arc::clone(&file_resolver),
                 &server_config,
+                mcp_rx,
             )
             .await?;
 
