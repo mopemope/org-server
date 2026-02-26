@@ -211,6 +211,125 @@ impl OrgMcpServer {
             content,
         }))
     }
+
+    #[tool(
+        name = "list_todos",
+        description = "List TODO items from managed Org files, optionally filtered by keyword (e.g., TODO, DONE)."
+    )]
+    async fn list_todos(
+        &self,
+        params: Parameters<ListTodosParams>,
+    ) -> Result<Json<ListTodosResponse>, McpError> {
+        let params = params.0;
+        let keyword_filter = params
+            .keyword
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        let mut todos = Vec::new();
+
+        for base in self.org_paths.iter() {
+            for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("org") {
+                    continue;
+                }
+                if let Ok(org) = crate::parse::parse_org_file(entry.path()).await {
+                    self.collect_todos(&org.sections, &mut todos, entry.path(), keyword_filter);
+                }
+            }
+        }
+
+        Ok(Json(ListTodosResponse { todos }))
+    }
+
+    #[tool(
+        name = "get_agenda",
+        description = "Get upcoming SCHEDULED and DEADLINE items from managed Org files."
+    )]
+    async fn get_agenda(
+        &self,
+        params: Parameters<GetAgendaParams>,
+    ) -> Result<Json<GetAgendaResponse>, McpError> {
+        let params = params.0;
+        let days = params.days.unwrap_or(7);
+        let mut items = Vec::new();
+        let now = chrono::Local::now().naive_local();
+        let max_date = now + chrono::Duration::days(days as i64);
+
+        for base in self.org_paths.iter() {
+            for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("org") {
+                    continue;
+                }
+                if let Ok(org) = crate::parse::parse_org_file(entry.path()).await {
+                    self.collect_agenda(&org.sections, &mut items, entry.path(), now, max_date);
+                }
+            }
+        }
+
+        Ok(Json(GetAgendaResponse { items }))
+    }
+
+    fn collect_todos(
+        &self,
+        sections: &[org_parser::Section],
+        todos: &mut Vec<TodoItem>,
+        file_path: &Path,
+        keyword_filter: Option<&str>,
+    ) {
+        for section in sections {
+            if let Some(ref status) = section.todo_status
+                && keyword_filter.is_none_or(|filter| status.eq_ignore_ascii_case(filter)) {
+                    let rel_path = self.resolve_relative_path(file_path);
+                    todos.push(TodoItem {
+                        file: rel_path,
+                        line: section.pos.line,
+                        headline: section.title.trim().to_string(),
+                        keyword: status.clone(),
+                    });
+                }
+            self.collect_todos(&section.sections, todos, file_path, keyword_filter);
+        }
+    }
+
+    fn collect_agenda(
+        &self,
+        sections: &[org_parser::Section],
+        items: &mut Vec<AgendaItem>,
+        file_path: &Path,
+        now: chrono::NaiveDateTime,
+        max_date: chrono::NaiveDateTime,
+    ) {
+        for section in sections {
+            for scheduling in &section.scheduling {
+                let (item_type, date_str) = match scheduling {
+                    org_parser::Scheduling::Scheduled(_, _, date) => ("SCHEDULED", date),
+                    org_parser::Scheduling::Deadline(_, _, date) => ("DEADLINE", date),
+                };
+
+                if let Some(parsed_date) = org_parser::reminder::parse_scheduling_datetime(date_str)
+                    && parsed_date >= now
+                    && parsed_date <= max_date
+                {
+                    let rel_path = self.resolve_relative_path(file_path);
+                    items.push(AgendaItem {
+                        file: rel_path,
+                        line: section.pos.line,
+                        headline: section.title.trim().to_string(),
+                        item_type: item_type.to_string(),
+                        date: date_str.clone(),
+                    });
+                }
+            }
+            self.collect_agenda(&section.sections, items, file_path, now, max_date);
+        }
+    }
 }
 
 #[tool_handler]
@@ -266,6 +385,46 @@ pub struct GetOrgFileParams {
 pub struct OrgFileContent {
     pub path: String,
     pub content: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct ListTodosParams {
+    #[serde(default)]
+    pub keyword: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct TodoItem {
+    pub file: String,
+    pub line: usize,
+    pub headline: String,
+    pub keyword: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct ListTodosResponse {
+    pub todos: Vec<TodoItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct GetAgendaParams {
+    // Number of days to include in the agenda, starting from today
+    #[serde(default)]
+    pub days: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct AgendaItem {
+    pub file: String,
+    pub line: usize,
+    pub headline: String,
+    pub item_type: String, // "SCHEDULED" or "DEADLINE"
+    pub date: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct GetAgendaResponse {
+    pub items: Vec<AgendaItem>,
 }
 
 fn map_resolver_error(err: FileResolverError) -> McpError {

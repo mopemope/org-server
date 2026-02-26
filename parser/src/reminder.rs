@@ -53,7 +53,7 @@ impl Reminder {
 }
 
 /// スケジューリング文字列をNaiveDateTimeにパースする
-fn parse_scheduling_datetime(datetime_str: &str) -> Option<NaiveDateTime> {
+pub fn parse_scheduling_datetime(datetime_str: &str) -> Option<NaiveDateTime> {
     let clean_datetime =
         datetime_str.trim_matches(|c| c == '<' || c == '>' || c == '[' || c == ']');
     let parts: Vec<&str> = clean_datetime.split_whitespace().collect();

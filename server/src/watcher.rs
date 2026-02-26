@@ -1,6 +1,6 @@
 use crate::{config::Config, parse::parse_org_file};
-use notify::event::EventKind;
-use notify::{RecommendedWatcher, Watcher};
+use notify::RecommendedWatcher;
+use notify_debouncer_mini::{DebouncedEvent, DebouncedEventKind, Debouncer, new_debouncer};
 use org_parser::Org;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -16,8 +16,10 @@ impl OrgWatcher {
         Self { senders }
     }
 
-    fn create_watcher()
-    -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<notify::Event>>)> {
+    fn create_debouncer() -> notify::Result<(
+        Debouncer<RecommendedWatcher>,
+        Receiver<notify_debouncer_mini::DebounceEventResult>,
+    )> {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)
@@ -25,8 +27,9 @@ impl OrgWatcher {
             .build()
             .unwrap();
 
-        let watcher = RecommendedWatcher::new(
-            move |res| {
+        let debouncer = new_debouncer(
+            std::time::Duration::from_millis(500),
+            move |res: notify_debouncer_mini::DebounceEventResult| {
                 let tx = tx.clone();
                 runtime.spawn(async move {
                     if let Err(err) = tx.send(res).await {
@@ -34,17 +37,19 @@ impl OrgWatcher {
                     }
                 });
             },
-            notify::Config::default(),
         )?;
-        Ok((watcher, rx))
+        Ok((debouncer, rx))
     }
 
     async fn watch_file(self, paths: Vec<String>) -> notify::Result<()> {
-        let (mut watcher, mut rx) = Self::create_watcher()?;
-        debug!("create watcher");
+        let (mut debouncer, mut rx) = Self::create_debouncer()?;
+        debug!("create debouncer");
 
         for path in paths {
-            match watcher.watch(path.as_ref(), notify::RecursiveMode::Recursive) {
+            match debouncer
+                .watcher()
+                .watch(path.as_ref(), notify::RecursiveMode::Recursive)
+            {
                 Ok(()) => {
                     debug!("start watch file: {:?}", path);
                 }
@@ -55,7 +60,6 @@ impl OrgWatcher {
             }
         }
 
-        let mut prev_event = None;
         loop {
             let res = rx.recv().await;
             let Some(res) = res else {
@@ -64,16 +68,10 @@ impl OrgWatcher {
             };
 
             match res {
-                Ok(event) => {
-                    if let Some(old_event) = prev_event
-                        && old_event == event
-                    {
-                        // same event skip
-                        prev_event = Some(event.clone());
-                        continue;
+                Ok(events) => {
+                    for event in events {
+                        self.notify(&event).await;
                     }
-                    prev_event = Some(event.clone());
-                    self.notify(&event).await;
                 }
                 Err(e) => {
                     error!("Error watching file: {:?}", e);
@@ -84,10 +82,12 @@ impl OrgWatcher {
         Ok(())
     }
 
-    async fn notify(&self, event: &notify::Event) {
+    async fn notify(&self, event: &DebouncedEvent) {
+        let p = &event.path;
         match event.kind {
-            EventKind::Create(_) | EventKind::Modify(_) => {
-                for p in &event.paths {
+            DebouncedEventKind::Any | DebouncedEventKind::AnyContinuous => {
+                // If it is any modification, we try to parse it. If it fails due to file absence, we can treat it as remove
+                if p.exists() {
                     match parse_org_file(p).await {
                         Ok(org) => {
                             let mut send_errors = 0;
@@ -110,10 +110,7 @@ impl OrgWatcher {
                             error!("Failed to parse org file {}: {:?}", p.display(), err);
                         }
                     }
-                }
-            }
-            EventKind::Remove(_) => {
-                for p in &event.paths {
+                } else {
                     let org = Org {
                         filename: Some(p.to_string_lossy().to_string()),
                         ..Default::default()
@@ -124,9 +121,7 @@ impl OrgWatcher {
                     }
                 }
             }
-            _ => {
-                // debug!("{:?}", event);
-            }
+            _ => {}
         }
     }
 }

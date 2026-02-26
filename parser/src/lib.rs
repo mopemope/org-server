@@ -2,7 +2,7 @@ mod display;
 mod json_conversion;
 
 mod parser;
-mod reminder;
+pub mod reminder;
 
 #[cfg(test)]
 pub mod test_helpers;

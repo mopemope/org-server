@@ -84,6 +84,7 @@ fn process_sections_with_depth_limit(
             },
             id: section.id.clone(),
             headline_symbol: section.headline_symbol.clone(),
+            todo_status: section.todo_status.clone(),
             title: section.title.clone(),
             drawers: convert_drawers(&section.drawers, config),
             properties: convert_properties(&section.properties, config),
@@ -320,6 +321,8 @@ struct SafeSection {
     pos: Option<Pos>,
     id: String,
     headline_symbol: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    todo_status: Option<String>,
     title: String,
     drawers: Vec<SafeDrawer>,
     properties: Vec<SafeProperties>,
@@ -450,6 +453,7 @@ impl Org {
                 },
                 id: section.id.clone(),
                 headline_symbol: section.headline_symbol.clone(),
+                todo_status: section.todo_status.clone(),
                 title: section.title.clone(),
                 drawers: convert_drawers(&section.drawers, config),
                 properties: convert_properties(&section.properties, config),
@@ -589,6 +593,7 @@ fn convert_safe_section_to_section(safe_section: SafeSection) -> Section {
         pos: safe_section.pos.unwrap_or_default(),
         id: safe_section.id,
         headline_symbol: safe_section.headline_symbol,
+        todo_status: safe_section.todo_status,
         title: safe_section.title,
         drawers: safe_section
             .drawers

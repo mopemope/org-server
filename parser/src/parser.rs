@@ -216,6 +216,7 @@ pub struct Section {
     pub pos: Pos,
     pub id: String,
     pub headline_symbol: String,
+    pub todo_status: Option<String>,
     pub title: String,
     pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
@@ -249,6 +250,7 @@ impl Default for Section {
             pos: Pos::default(),
             id: Uuid::new_v4().to_string(),
             headline_symbol: String::default(),
+            todo_status: None,
             title: String::default(),
             drawers: Vec::default(),
             properties: Vec::default(),
@@ -430,11 +432,14 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                                 Rule::headline_symbol => {
                                     section.headline_symbol = pair.as_str().to_string();
                                 }
+                                Rule::todo_status => {
+                                    section.todo_status = Some(pair.as_str().to_string());
+                                }
                                 Rule::headline_title => {
                                     section.title = pair.as_str().to_string();
                                 }
                                 _ => {
-                                    // TODO: Handle tags and other rules
+                                    // tags etc.
                                 }
                             }
                         }
