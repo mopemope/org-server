@@ -401,18 +401,6 @@ impl OrgMcpServer {
         }
     }
 
-    fn find_status_at_line(&self, sections: &[org_parser::Section], line: usize) -> Option<String> {
-        for section in sections {
-            if section.pos.line == line {
-                return section.todo_status.clone();
-            }
-            if let Some(res) = self.find_status_at_line(&section.sections, line) {
-                return Some(res);
-            }
-        }
-        None
-    }
-
     #[tool(
         name = "update_todo_status",
         description = "Update the TODO status of a specific headline in an Org file."
@@ -422,90 +410,25 @@ impl OrgMcpServer {
         params: Parameters<UpdateTodoStatusParams>,
     ) -> Result<Json<WriteResponse>, McpError> {
         let params = params.0;
-        let new_status = params.new_status.trim();
-        let target_idx = params.headline_line_number.saturating_sub(1);
-
         let resolved = self
             .file_resolver
             .resolve_file(&params.filepath)
             .await
             .map_err(map_resolver_error)?;
 
-        let content = fs::read_to_string(&resolved)
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to read file: {}", e), None))?;
-
-        let mut lines: Vec<&str> = content.split('\n').collect();
-        if target_idx >= lines.len() {
-            return Err(McpError::invalid_params(
-                format!("Line {} out of bounds", params.headline_line_number),
-                None,
-            ));
+        match crate::edit::do_update_todo_status(
+            &resolved,
+            params.headline_line_number,
+            &params.new_status,
+        )
+        .await
+        {
+            Ok(msg) => Ok(Json(WriteResponse {
+                success: true,
+                message: msg,
+            })),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
-
-        let target_line = lines[target_idx];
-        let parts: Vec<&str> = target_line.splitn(2, ' ').collect();
-        if parts.is_empty() || !parts[0].starts_with('*') {
-            return Err(McpError::invalid_params(
-                format!("Line {} is not a headline", params.headline_line_number),
-                None,
-            ));
-        }
-
-        let mut existing_status = None;
-        if let Ok(org) = org_parser::parse(&mut org_parser::Context::new(), &content) {
-            existing_status = self.find_status_at_line(&org.sections, params.headline_line_number);
-        }
-
-        let prefix = format!("{} ", parts[0]);
-        let mut new_line = target_line.to_string();
-
-        if let Some(old_status) = existing_status {
-            if target_line[prefix.len()..].starts_with(&old_status) {
-                let rest_idx = prefix.len() + old_status.len();
-                let rest = target_line[rest_idx..].trim_start();
-
-                if new_status.is_empty() {
-                    new_line = format!("{}{}", prefix, rest);
-                } else {
-                    new_line = format!(
-                        "{}{}{}",
-                        prefix,
-                        new_status,
-                        if rest.is_empty() { "" } else { " " }
-                    );
-                    new_line.push_str(rest);
-                }
-            }
-        } else {
-            // No existing status, insert after asterisks
-            let rest = parts.get(1).unwrap_or(&"").trim_start();
-            if new_status.is_empty() {
-                new_line = format!("{}{}", prefix, rest);
-            } else {
-                new_line = format!(
-                    "{}{}{}",
-                    prefix,
-                    new_status,
-                    if rest.is_empty() { "" } else { " " }
-                );
-                new_line.push_str(rest);
-            }
-        }
-
-        lines[target_idx] = &new_line;
-
-        fs::write(&resolved, lines.join("\n"))
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to write file: {}", e), None))?;
-
-        Ok(Json(WriteResponse {
-            success: true,
-            message: format!(
-                "Successfully updated line {} to status '{}'",
-                params.headline_line_number, new_status
-            ),
-        }))
     }
 
     #[tool(
@@ -523,38 +446,20 @@ impl OrgMcpServer {
             .await
             .map_err(map_resolver_error)?;
 
-        let mut new_line = "* ".to_string();
-        if let Some(status) = &params.status
-            && !status.trim().is_empty()
+        match crate::edit::do_append_task(
+            &resolved,
+            &params.title,
+            params.status.as_deref(),
+            params.tags.as_deref(),
+        )
+        .await
         {
-            new_line.push_str(&format!("{} ", status.trim()));
+            Ok(msg) => Ok(Json(WriteResponse {
+                success: true,
+                message: msg,
+            })),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
-        new_line.push_str(params.title.trim());
-
-        if let Some(tags) = &params.tags
-            && !tags.is_empty()
-        {
-            new_line.push_str(&format!(" :{}:", tags.join(":")));
-        }
-
-        let mut content = fs::read_to_string(&resolved)
-            .await
-            .unwrap_or_else(|_| String::new()); // allow appending to empty/new file if access is fine
-
-        if !content.ends_with('\n') && !content.is_empty() {
-            content.push('\n');
-        }
-        content.push_str(&new_line);
-        content.push('\n');
-
-        fs::write(&resolved, content)
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to write file: {}", e), None))?;
-
-        Ok(Json(WriteResponse {
-            success: true,
-            message: format!("Successfully appended task '{}'", params.title),
-        }))
     }
 
     #[tool(
@@ -566,87 +471,26 @@ impl OrgMcpServer {
         params: Parameters<UpdateSchedulingParams>,
     ) -> Result<Json<WriteResponse>, McpError> {
         let params = params.0;
-        let target_idx = params.headline_line_number.saturating_sub(1);
-        let s_type = params.scheduling_type.trim().to_uppercase();
-
-        if s_type != "SCHEDULED" && s_type != "DEADLINE" {
-            return Err(McpError::invalid_params(
-                "scheduling_type must be SCHEDULED or DEADLINE",
-                None,
-            ));
-        }
-
         let resolved = self
             .file_resolver
             .resolve_file(&params.filepath)
             .await
             .map_err(map_resolver_error)?;
 
-        let content = fs::read_to_string(&resolved)
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to read file: {}", e), None))?;
-
-        let mut lines: Vec<&str> = content.split('\n').collect();
-        if target_idx >= lines.len() {
-            return Err(McpError::invalid_params(
-                format!("Line {} out of bounds", params.headline_line_number),
-                None,
-            ));
+        match crate::edit::do_update_scheduling(
+            &resolved,
+            params.headline_line_number,
+            &params.scheduling_type,
+            &params.timestamp,
+        )
+        .await
+        {
+            Ok(msg) => Ok(Json(WriteResponse {
+                success: true,
+                message: msg,
+            })),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
-
-        let target_line = lines[target_idx];
-        if !target_line.starts_with('*') {
-            return Err(McpError::invalid_params(
-                format!("Line {} is not a headline", params.headline_line_number),
-                None,
-            ));
-        }
-
-        // Check if next line contains scheduling info
-        let insert_idx = target_idx + 1;
-
-        let new_schedule_str = format!("{}: {}", s_type, params.timestamp);
-
-        if insert_idx < lines.len() {
-            let next_line = lines[insert_idx];
-            // If the next line already has our target scheduling type:
-            if next_line.trim_start().starts_with(&s_type) {
-                // We'll just replace the line entirely (simplified, assuming it only holds this schedule)
-            }
-        }
-
-        // The safest approach for now: find existing line that exactly matches our prefix.
-        let mut found_existing_line = None;
-        for (i, line) in lines.iter().enumerate().skip(target_idx + 1) {
-            let line_trim = line.trim_start();
-            if line_trim.starts_with('*') {
-                break; // next headline
-            }
-            if line_trim.starts_with(&s_type) {
-                found_existing_line = Some(i);
-                break;
-            }
-        }
-
-        let new_schedule_str_owned = new_schedule_str;
-
-        if let Some(idx) = found_existing_line {
-            // we will replace the whole line for simplicity, assuming one schedule per line.
-            // if it had both, the other is lost. We should document this or fix it later.
-            lines[idx] = &new_schedule_str_owned;
-        } else {
-            // insert right after headline
-            lines.insert(target_idx + 1, &new_schedule_str_owned);
-        }
-
-        fs::write(&resolved, lines.join("\n"))
-            .await
-            .map_err(|e| McpError::internal_error(format!("Failed to write file: {}", e), None))?;
-
-        Ok(Json(WriteResponse {
-            success: true,
-            message: format!("Successfully updated {}", s_type),
-        }))
     }
 }
 

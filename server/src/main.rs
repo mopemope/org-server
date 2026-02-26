@@ -8,6 +8,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod api_error;
 mod cli;
 mod config;
+mod edit;
 mod file_resolver;
 mod json_output;
 mod mcp;

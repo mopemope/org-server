@@ -8,11 +8,11 @@ use anyhow::Result;
 use axum::{
     Router,
     extract::{Path, Query, State},
-    response::Json,
-    routing::get,
+    response::Json as AxumJson,
+    routing::{get, post},
 };
 use org_parser::JsonConversionConfig;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -86,6 +86,9 @@ pub async fn run_server(
         .route("/", get(root))
         .route("/health", get(health))
         .route("/api/orgs/{*filepath}", get(get_org_file))
+        .route("/api/edit/todo/{*filepath}", post(update_todo_status))
+        .route("/api/edit/append/{*filepath}", post(append_task))
+        .route("/api/edit/schedule/{*filepath}", post(update_scheduling))
         .with_state(app_state);
 
     // Try to bind to the specified port, with fallback options
@@ -137,8 +140,8 @@ async fn root() -> &'static str {
 }
 
 /// ヘルスチェックハンドラー
-async fn health() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
+async fn health() -> AxumJson<serde_json::Value> {
+    AxumJson(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
     }))
@@ -149,7 +152,7 @@ async fn get_org_file(
     State(state): State<AppState>,
     Path(filepath): Path<String>,
     Query(query): Query<OrgFileQuery>,
-) -> ApiResult<Json<Box<serde_json::value::RawValue>>> {
+) -> ApiResult<AxumJson<Box<serde_json::value::RawValue>>> {
     debug!("GET /api/orgs/{} with query: {:?}", filepath, query);
 
     // クエリパラメータの検証
@@ -179,7 +182,113 @@ async fn get_org_file(
     })?;
 
     debug!("Successfully converted org file to JSON: {}", filepath);
-    Ok(Json(raw_value))
+    Ok(AxumJson(raw_value))
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateTodoStatusRequest {
+    pub headline_line_number: usize,
+    pub new_status: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AppendTaskRequest {
+    pub title: String,
+    pub status: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateSchedulingRequest {
+    pub headline_line_number: usize,
+    pub scheduling_type: String,
+    pub timestamp: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WriteResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+/// TODOステータス更新ハンドラー
+async fn update_todo_status(
+    State(state): State<AppState>,
+    Path(filepath): Path<String>,
+    AxumJson(payload): AxumJson<UpdateTodoStatusRequest>,
+) -> ApiResult<AxumJson<WriteResponse>> {
+    debug!("POST /api/orgs/{}/todo", filepath);
+    let resolved = state.file_resolver.resolve_file(&filepath).await?;
+
+    match crate::edit::do_update_todo_status(
+        &resolved,
+        payload.headline_line_number,
+        &payload.new_status,
+    )
+    .await
+    {
+        Ok(msg) => Ok(AxumJson(WriteResponse {
+            success: true,
+            message: msg,
+        })),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
+    }
+}
+
+/// タスク追記ハンドラー
+async fn append_task(
+    State(state): State<AppState>,
+    Path(filepath): Path<String>,
+    AxumJson(payload): AxumJson<AppendTaskRequest>,
+) -> ApiResult<AxumJson<WriteResponse>> {
+    debug!("POST /api/orgs/{}/append", filepath);
+    let resolved = state.file_resolver.resolve_file(&filepath).await?;
+
+    match crate::edit::do_append_task(
+        &resolved,
+        &payload.title,
+        payload.status.as_deref(),
+        payload.tags.as_deref(),
+    )
+    .await
+    {
+        Ok(msg) => Ok(AxumJson(WriteResponse {
+            success: true,
+            message: msg,
+        })),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
+    }
+}
+
+/// スケジューリング更新ハンドラー
+async fn update_scheduling(
+    State(state): State<AppState>,
+    Path(filepath): Path<String>,
+    AxumJson(payload): AxumJson<UpdateSchedulingRequest>,
+) -> ApiResult<AxumJson<WriteResponse>> {
+    debug!("POST /api/orgs/{}/schedule", filepath);
+    let resolved = state.file_resolver.resolve_file(&filepath).await?;
+
+    match crate::edit::do_update_scheduling(
+        &resolved,
+        payload.headline_line_number,
+        &payload.scheduling_type,
+        &payload.timestamp,
+    )
+    .await
+    {
+        Ok(msg) => Ok(AxumJson(WriteResponse {
+            success: true,
+            message: msg,
+        })),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
+    }
 }
 
 /// クエリパラメータの検証
@@ -224,6 +333,9 @@ mod tests {
         Router::new()
             .route("/", get(root))
             .route("/api/orgs/{*filepath}", get(get_org_file))
+            .route("/api/edit/todo/{*filepath}", post(update_todo_status))
+            .route("/api/edit/append/{*filepath}", post(append_task))
+            .route("/api/edit/schedule/{*filepath}", post(update_scheduling))
             .with_state(app_state)
     }
 
@@ -399,5 +511,109 @@ This is a subsection.
             max_depth: 101,
         };
         assert!(validate_query_parameters(&query).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_todo_status_endpoint() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let temp_path = temp_dir.path().to_string_lossy().to_string();
+        let test_file_path = temp_dir.path().join("test_write.org");
+        fs::write(&test_file_path, "* TODO Test Task\n").await?;
+
+        let config = create_test_config(vec![temp_path]);
+        let app = create_test_app(config).await;
+
+        let payload = UpdateTodoStatusRequest {
+            headline_line_number: 1,
+            new_status: "DONE".to_string(),
+        };
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/edit/todo/test_write.org")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&payload)?))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let content = fs::read_to_string(&test_file_path).await?;
+        assert_eq!(content, "* DONE Test Task\n");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_append_task_endpoint() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let temp_path = temp_dir.path().to_string_lossy().to_string();
+        let test_file_path = temp_dir.path().join("test_append.org");
+        fs::write(&test_file_path, "* Existing Task\n").await?;
+
+        let config = create_test_config(vec![temp_path]);
+        let app = create_test_app(config).await;
+
+        let payload = AppendTaskRequest {
+            title: "New Task".to_string(),
+            status: Some("TODO".to_string()),
+            tags: Some(vec!["work".to_string()]),
+        };
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/edit/append/test_append.org")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&payload)?))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let content = fs::read_to_string(&test_file_path).await?;
+        assert!(content.contains("* TODO New Task :work:"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_update_scheduling_endpoint() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let temp_path = temp_dir.path().to_string_lossy().to_string();
+        let test_file_path = temp_dir.path().join("test_schedule.org");
+        fs::write(&test_file_path, "* Task Setup\n").await?;
+
+        let config = create_test_config(vec![temp_path]);
+        let app = create_test_app(config).await;
+
+        let payload = UpdateSchedulingRequest {
+            headline_line_number: 1,
+            scheduling_type: "SCHEDULED".to_string(),
+            timestamp: "<2026-03-01 Sun>".to_string(),
+        };
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/edit/schedule/test_schedule.org")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&payload)?))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let content = fs::read_to_string(&test_file_path).await?;
+        assert!(content.contains("SCHEDULED: <2026-03-01 Sun>"));
+        Ok(())
     }
 }
