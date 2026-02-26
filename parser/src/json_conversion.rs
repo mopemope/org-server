@@ -1,5 +1,5 @@
 use crate::parser::{
-    Content, Drawer, Keyword, Org, Pos, Properties, Property, Row, Scheduling, Section,
+    CodeBlock, Content, Drawer, Keyword, Org, Pos, Properties, Property, Row, Scheduling, Section,
 };
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -85,11 +85,14 @@ fn process_sections_with_depth_limit(
             id: section.id.clone(),
             headline_symbol: section.headline_symbol.clone(),
             todo_status: section.todo_status.clone(),
+            priority: section.priority.clone(),
             title: section.title.clone(),
+            tags: section.tags.clone(),
             drawers: convert_drawers(&section.drawers, config),
             properties: convert_properties(&section.properties, config),
             keywords: convert_keywords(&section.keywords, config),
             contents: convert_rows(&section.contents, config),
+            code_blocks: convert_code_blocks(&section.code_blocks, config),
             scheduling: convert_scheduling(&section.scheduling, config),
             sections: process_sections_with_depth_limit(
                 &section.sections,
@@ -236,6 +239,25 @@ fn convert_scheduling(
         .collect()
 }
 
+/// CodeBlockの変換
+fn convert_code_blocks(
+    code_blocks: &[CodeBlock],
+    config: &JsonConversionConfig,
+) -> Vec<SafeCodeBlock> {
+    code_blocks
+        .iter()
+        .map(|cb| SafeCodeBlock {
+            pos: if config.include_position {
+                Some(cb.pos.clone())
+            } else {
+                None
+            },
+            language: cb.language.clone(),
+            body: cb.body.clone(),
+        })
+        .collect()
+}
+
 /// 位置情報を制御可能なDrawer
 #[derive(Debug, Serialize, Deserialize)]
 struct SafeDrawer {
@@ -314,6 +336,15 @@ enum SafeScheduling {
     },
 }
 
+/// 位置情報を制御可能なCodeBlock
+#[derive(Debug, Serialize, Deserialize)]
+struct SafeCodeBlock {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    language: String,
+    body: String,
+}
+
 /// 位置情報を制御可能なSection
 #[derive(Debug, Serialize, Deserialize)]
 struct SafeSection {
@@ -323,11 +354,17 @@ struct SafeSection {
     headline_symbol: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     todo_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    priority: Option<String>,
     title: String,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    tags: Vec<String>,
     drawers: Vec<SafeDrawer>,
     properties: Vec<SafeProperties>,
     keywords: Vec<SafeKeyword>,
     contents: Vec<SafeRow>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    code_blocks: Vec<SafeCodeBlock>,
     scheduling: Vec<SafeScheduling>,
     sections: Vec<SafeSection>,
 }
@@ -454,11 +491,14 @@ impl Org {
                 id: section.id.clone(),
                 headline_symbol: section.headline_symbol.clone(),
                 todo_status: section.todo_status.clone(),
+                priority: section.priority.clone(),
                 title: section.title.clone(),
+                tags: section.tags.clone(),
                 drawers: convert_drawers(&section.drawers, config),
                 properties: convert_properties(&section.properties, config),
                 keywords: convert_keywords(&section.keywords, config),
                 contents: convert_rows(&section.contents, config),
+                code_blocks: convert_code_blocks(&section.code_blocks, config),
                 scheduling: convert_scheduling(&section.scheduling, config),
                 sections: process_sections_with_depth_limit(&section.sections, config, 0)?,
             };
@@ -594,7 +634,9 @@ fn convert_safe_section_to_section(safe_section: SafeSection) -> Section {
         id: safe_section.id,
         headline_symbol: safe_section.headline_symbol,
         todo_status: safe_section.todo_status,
+        priority: safe_section.priority,
         title: safe_section.title,
+        tags: safe_section.tags,
         drawers: safe_section
             .drawers
             .into_iter()
@@ -614,6 +656,15 @@ fn convert_safe_section_to_section(safe_section: SafeSection) -> Section {
             .contents
             .into_iter()
             .map(convert_safe_row_to_row)
+            .collect(),
+        code_blocks: safe_section
+            .code_blocks
+            .into_iter()
+            .map(|cb| CodeBlock {
+                pos: cb.pos.unwrap_or_default(),
+                language: cb.language,
+                body: cb.body,
+            })
             .collect(),
         scheduling: safe_section
             .scheduling

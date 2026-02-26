@@ -190,7 +190,19 @@ impl std::fmt::Display for SectionDisplay<'_> {
 
         contents.sort_by_key(|a| a.line());
 
-        writeln!(f, "{} {}", self.inner.headline_symbol, self.inner.title)?; // headline
+        // headline: symbol + TODO + priority + title + tags
+        write!(f, "{}", self.inner.headline_symbol)?;
+        if let Some(ref status) = self.inner.todo_status {
+            write!(f, " {status}")?;
+        }
+        if let Some(ref priority) = self.inner.priority {
+            write!(f, " [#{priority}]")?;
+        }
+        write!(f, " {}", self.inner.title)?;
+        if !self.inner.tags.is_empty() {
+            write!(f, " :{}:", self.inner.tags.join(":"))?;
+        }
+        writeln!(f)?;
 
         let mut line = self.line() + 1;
         for c in contents {
@@ -213,6 +225,19 @@ impl std::fmt::Display for SectionDisplay<'_> {
                     line += 1;
                 }
             }
+        }
+
+        // code_blocks don't have a Display trait impl, output directly
+        for cb in &self.inner.code_blocks {
+            if cb.language.is_empty() {
+                writeln!(f, "#+BEGIN_SRC")?;
+            } else {
+                writeln!(f, "#+BEGIN_SRC {}", cb.language)?;
+            }
+            if !cb.body.is_empty() {
+                writeln!(f, "{}", cb.body)?;
+            }
+            writeln!(f, "#+END_SRC")?;
         }
 
         Ok(())

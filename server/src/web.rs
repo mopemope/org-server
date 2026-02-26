@@ -59,6 +59,20 @@ impl OrgFileQuery {
     }
 }
 
+/// Graceful shutdown signal handler
+async fn shutdown_signal() {
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {
+            info!("Received shutdown signal, shutting down gracefully...");
+        }
+        Err(err) => {
+            tracing::error!("Failed to listen for shutdown signal: {}", err);
+            // Fall through — without a signal we just let the future complete,
+            // which will still trigger the shutdown path.
+        }
+    }
+}
+
 /// サーバー起動
 pub async fn run_server(
     port: u16,
@@ -70,6 +84,7 @@ pub async fn run_server(
     // build our application with routes
     let app = Router::new()
         .route("/", get(root))
+        .route("/health", get(health))
         .route("/api/orgs/{*filepath}", get(get_org_file))
         .with_state(app_state);
 
@@ -90,8 +105,13 @@ pub async fn run_server(
                 info!("Server starting on {}", addr);
                 info!("API endpoints:");
                 info!("  GET /api/orgs/{{filepath}} - Get org file as JSON");
+                info!("  GET /health - Health check");
                 info!("  Example: GET /api/orgs/my-notes.org?pretty=true");
-                axum::serve(listener, app).await?;
+                info!("Press Ctrl+C to stop the server");
+                axum::serve(listener, app)
+                    .with_graceful_shutdown(shutdown_signal())
+                    .await?;
+                info!("Server shutdown complete");
                 return Ok(());
             }
             Err(err) => {
@@ -113,7 +133,15 @@ pub async fn run_server(
 
 /// ルートハンドラー
 async fn root() -> &'static str {
-    "Org Server API\n\nAvailable endpoints:\n- GET /api/orgs/{filepath} - Get org file as JSON"
+    "Org Server API\n\nAvailable endpoints:\n- GET /api/orgs/{filepath} - Get org file as JSON\n- GET /health - Health check"
+}
+
+/// ヘルスチェックハンドラー
+async fn health() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
 }
 
 /// Orgファイル取得ハンドラー

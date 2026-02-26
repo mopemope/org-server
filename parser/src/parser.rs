@@ -200,6 +200,13 @@ impl Hash for Content {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct CodeBlock {
+    pub pos: Pos,
+    pub language: String,
+    pub body: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Row {
     pub pos: Pos,
     pub contents: Vec<Content>,
@@ -217,11 +224,14 @@ pub struct Section {
     pub id: String,
     pub headline_symbol: String,
     pub todo_status: Option<String>,
+    pub priority: Option<String>,
     pub title: String,
+    pub tags: Vec<String>,
     pub drawers: Vec<Drawer>,
     pub properties: Vec<Properties>,
     pub keywords: Vec<Keyword>,
     pub contents: Vec<Row>,
+    pub code_blocks: Vec<CodeBlock>,
     pub sections: Vec<Section>,
     pub scheduling: Vec<Scheduling>,
 }
@@ -251,11 +261,14 @@ impl Default for Section {
             id: Uuid::new_v4().to_string(),
             headline_symbol: String::default(),
             todo_status: None,
+            priority: None,
             title: String::default(),
+            tags: Vec::default(),
             drawers: Vec::default(),
             properties: Vec::default(),
             keywords: Vec::default(),
             contents: Vec::default(),
+            code_blocks: Vec::default(),
             sections: Vec::default(),
             scheduling: Vec::default(),
         }
@@ -372,11 +385,30 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
                 kw.value = pair.as_str().to_string();
             }
             _ => {
-                todo!();
+                debug!("Unexpected keyword rule: {:?}", pair.as_rule());
             }
         }
     }
     kw
+}
+
+fn parse_src_block(pair: Pair<'_, Rule>) -> CodeBlock {
+    let mut code_block = CodeBlock::default();
+    let (line, col) = pair.line_col();
+    code_block.pos = Pos::new(col, line);
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::src_block_lang => {
+                code_block.language = pair.as_str().trim().to_string();
+            }
+            Rule::src_block_body => {
+                code_block.body = pair.as_str().to_string();
+            }
+            _ => {}
+        }
+    }
+    code_block
 }
 
 fn parse_scheduling_items(pair: Pair<'_, Rule>, title: String) -> Vec<Scheduling> {
@@ -435,12 +467,20 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                                 Rule::todo_status => {
                                     section.todo_status = Some(pair.as_str().to_string());
                                 }
+                                Rule::priority => {
+                                    if let Some(inner) = pair.into_inner().next() {
+                                        section.priority = Some(inner.as_str().to_string());
+                                    }
+                                }
                                 Rule::headline_title => {
                                     section.title = pair.as_str().to_string();
                                 }
-                                _ => {
-                                    // tags etc.
+                                Rule::tags => {
+                                    for inner in pair.into_inner() {
+                                        section.tags.push(inner.as_str().to_string());
+                                    }
                                 }
+                                _ => {}
                             }
                         }
                     }
@@ -497,6 +537,10 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
                     }
                 }
                 section.contents.push(row);
+            }
+            Rule::src_block => {
+                let code_block = parse_src_block(pair);
+                section.code_blocks.push(code_block);
             }
             Rule::section => {
                 let sec = parse_section(ctx, pair);
@@ -957,7 +1001,7 @@ ABCDEF
                                 }
                                 _ => {
                                     // println!("!!! {:?}", pair);
-                                    todo!()
+                                    panic!("Unexpected rule: {:?}", pair.as_rule())
                                 }
                             }
                         }
@@ -1033,7 +1077,7 @@ Content2
                                     Rule::property_value => {
                                         assert_eq!("value", pair.as_str());
                                     }
-                                    _ => todo!(),
+                                    _ => panic!("Unexpected property rule: {:?}", pair.as_rule()),
                                 }
                             }
                         }
@@ -1048,7 +1092,7 @@ Content2
                                     assert_eq!("title", pair.as_str());
                                 }
                                 _ => {
-                                    todo!();
+                                    panic!("Unexpected rule: {:?}", pair.as_rule());
                                 }
                             }
                         }
@@ -1074,7 +1118,7 @@ Content2
                                                     assert_eq!("TEST1", pair.as_str());
                                                 }
                                                 _ => {
-                                                    todo!();
+                                                    panic!("Unexpected rule: {:?}", pair.as_rule());
                                                 }
                                             }
                                         }
@@ -1097,7 +1141,10 @@ Content2
                                                         Rule::property_value => {
                                                             assert_eq!("value1", pair.as_str());
                                                         }
-                                                        _ => todo!(),
+                                                        _ => panic!(
+                                                            "Unexpected property rule: {:?}",
+                                                            pair.as_rule()
+                                                        ),
                                                     },
                                                     1 => match pair.as_rule() {
                                                         Rule::property_key => {
@@ -1109,16 +1156,19 @@ Content2
                                                                 pair.as_str()
                                                             );
                                                         }
-                                                        _ => todo!(),
+                                                        _ => panic!(
+                                                            "Unexpected property rule: {:?}",
+                                                            pair.as_rule()
+                                                        ),
                                                     },
-                                                    _ => todo!(),
+                                                    _ => panic!("Unexpected property index: {}", i),
                                                 }
                                             }
                                         }
                                     }
 
                                     _ => {
-                                        todo!();
+                                        panic!("Unexpected rule: {:?}", pair.as_rule());
                                     }
                                 }
                             }
@@ -1136,7 +1186,7 @@ Content2
                                                     assert_eq!("test2", pair.as_str());
                                                 }
                                                 _ => {
-                                                    todo!();
+                                                    panic!("Unexpected rule: {:?}", pair.as_rule());
                                                 }
                                             }
                                         }
@@ -1160,27 +1210,30 @@ Content2
                                                             assert_eq!("value2", pair.as_str());
                                                         }
                                                         _ => {
-                                                            todo!();
+                                                            panic!(
+                                                                "Unexpected rule: {:?}",
+                                                                pair.as_rule()
+                                                            );
                                                         }
                                                     },
-                                                    _ => todo!(),
+                                                    _ => panic!("Unexpected property index: {}", i),
                                                 }
                                             }
                                         }
                                     }
 
                                     _ => {
-                                        todo!();
+                                        panic!("Unexpected rule: {:?}", pair.as_rule());
                                     }
                                 }
                             }
                         }
                         _ => {
-                            todo!();
+                            panic!("Unexpected section item: {:?}", pair.as_rule());
                         }
                     },
                     _ => {
-                        todo!();
+                        panic!("Unexpected org item at index {}: {:?}", i, pair.as_rule());
                     }
                 }
             }
@@ -1288,5 +1341,196 @@ CONTENT2
         debug!("{:?}", result);
 
         Ok(())
+    }
+
+    // === New feature tests ===
+
+    #[test]
+    fn test_rule_priority() {
+        init();
+        let content = "[#A]";
+        let pairs = OrgParser::parse(Rule::priority, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            for inner in pair.into_inner() {
+                assert_eq!(Rule::priority_value, inner.as_rule());
+                assert_eq!("A", inner.as_str());
+            }
+        }
+        // Test priority B and C
+        for (input, expected) in [("[#B]", "B"), ("[#C]", "C")] {
+            let pairs = OrgParser::parse(Rule::priority, input).unwrap_or_else(|e| panic!("{}", e));
+            for pair in pairs {
+                for inner in pair.into_inner() {
+                    assert_eq!(expected, inner.as_str());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rule_src_block() {
+        init();
+        let content = "#+BEGIN_SRC python\nprint(\"hello\")\n#+END_SRC\n";
+        let pairs = OrgParser::parse(Rule::src_block, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            let mut lang = String::new();
+            let mut body = String::new();
+            for inner in pair.into_inner() {
+                match inner.as_rule() {
+                    Rule::src_block_lang => lang = inner.as_str().trim().to_string(),
+                    Rule::src_block_body => body = inner.as_str().to_string(),
+                    _ => {}
+                }
+            }
+            assert_eq!("python", lang);
+            assert_eq!("print(\"hello\")", body);
+        }
+    }
+
+    #[test]
+    fn test_rule_src_block_empty_body() {
+        init();
+        let content = "#+BEGIN_SRC rust\n\n#+END_SRC\n";
+        let pairs = OrgParser::parse(Rule::src_block, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            let mut lang = String::new();
+            let mut body = String::new();
+            for inner in pair.into_inner() {
+                match inner.as_rule() {
+                    Rule::src_block_lang => lang = inner.as_str().trim().to_string(),
+                    Rule::src_block_body => body = inner.as_str().to_string(),
+                    _ => {}
+                }
+            }
+            assert_eq!("rust", lang);
+            assert!(body.is_empty(), "Expected empty body, got: {:?}", body);
+        }
+    }
+
+    #[test]
+    fn test_headline_with_priority_and_tags() {
+        init();
+        let content = "** TODO [#A] Fix the bug :work:urgent:";
+        let pairs = OrgParser::parse(Rule::headline, content).unwrap_or_else(|e| panic!("{}", e));
+        for pair in pairs {
+            let mut symbol = String::new();
+            let mut todo = String::new();
+            let mut priority = String::new();
+            let mut title = String::new();
+            let mut tags = Vec::new();
+            for inner in pair.into_inner() {
+                match inner.as_rule() {
+                    Rule::headline_symbol => symbol = inner.as_str().to_string(),
+                    Rule::todo_status => todo = inner.as_str().to_string(),
+                    Rule::priority => {
+                        priority = inner
+                            .into_inner()
+                            .next()
+                            .map(|p| p.as_str().to_string())
+                            .unwrap_or_default();
+                    }
+                    Rule::headline_title => title = inner.as_str().trim().to_string(),
+                    Rule::tags => {
+                        for t in inner.into_inner() {
+                            tags.push(t.as_str().to_string());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            assert_eq!("**", symbol);
+            assert_eq!("TODO", todo);
+            assert_eq!("A", priority);
+            assert_eq!("Fix the bug", title);
+            assert_eq!(vec!["work", "urgent"], tags);
+        }
+    }
+
+    #[test]
+    fn test_parse_section_with_code_block() {
+        init();
+        let content = "* Example section\n#+BEGIN_SRC python\ndef hello():\n    print('world')\n#+END_SRC\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        assert_eq!(1, org.sections.len());
+        let sec = &org.sections[0];
+        assert_eq!("Example section", sec.title);
+        assert_eq!(1, sec.code_blocks.len());
+        assert_eq!("python", sec.code_blocks[0].language);
+        assert!(sec.code_blocks[0].body.contains("def hello()"));
+    }
+
+    #[test]
+    fn test_parse_section_with_priority_and_tags() {
+        init();
+        let content = "* TODO [#B] Important task :project:review:\nSome content here\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        assert_eq!(1, org.sections.len());
+        let sec = &org.sections[0];
+        assert_eq!(Some("TODO".to_string()), sec.todo_status);
+        assert_eq!(Some("B".to_string()), sec.priority);
+        assert_eq!("Important task", sec.title.trim());
+        assert_eq!(vec!["project", "review"], sec.tags);
+    }
+
+    #[test]
+    fn test_custom_todo_keywords() {
+        init();
+        for keyword in [
+            "NEXT",
+            "WAITING",
+            "CANCELLED",
+            "CANCELED",
+            "HOLD",
+            "SOMEDAY",
+        ] {
+            let content = format!("* {} Some task\n\n", keyword);
+            let mut ctx = Context::new();
+            let org = parse(&mut ctx, &content).unwrap();
+            assert_eq!(1, org.sections.len());
+            assert_eq!(
+                Some(keyword.to_string()),
+                org.sections[0].todo_status,
+                "Failed for keyword: {}",
+                keyword
+            );
+        }
+    }
+
+    #[test]
+    fn test_display_with_priority_tags_code_blocks() {
+        init();
+        let content =
+            "* TODO [#A] My task :work:home:\n#+BEGIN_SRC python\nprint('test')\n#+END_SRC\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let sec = &org.sections[0];
+        let displayed = sec.display().to_string();
+        assert!(displayed.contains("TODO"), "Missing TODO in display");
+        assert!(displayed.contains("[#A]"), "Missing priority in display");
+        assert!(displayed.contains("My task"), "Missing title in display");
+        assert!(displayed.contains(":work:home:"), "Missing tags in display");
+        assert!(
+            displayed.contains("#+BEGIN_SRC python"),
+            "Missing src block begin"
+        );
+        assert!(
+            displayed.contains("print('test')"),
+            "Missing src block body"
+        );
+        assert!(displayed.contains("#+END_SRC"), "Missing src block end");
+    }
+
+    #[test]
+    fn test_section_without_todo_is_title() {
+        init();
+        let content = "* Regular heading\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        assert_eq!(1, org.sections.len());
+        let sec = &org.sections[0];
+        assert!(sec.todo_status.is_none());
+        assert_eq!("Regular heading", sec.title);
     }
 }

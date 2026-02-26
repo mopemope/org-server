@@ -55,7 +55,6 @@ drawer_contents = ${
 drawer          =  {
     (drawer_start ~ sp* ~ newline+) ~ (drawer_contents ~ newline+)* ~ (drawer_end ~ sp* ~ newline*)
 }
-// drawer = { drawer_start ~ sp* ~ newline+ ~ (drawer_content ~ newline)* ~ drawer_end ~ sp* ~ newline  }
 
 keyword_start = _{ "#+" }
 block_start   =  { keyword_start ~ ^"BEGIN" }
@@ -66,16 +65,31 @@ keyword_k     = _{ keyword_start ~ keyword_key ~ drawer_sep }
 keyword_value =  { (!(newline) ~ ANY)* }
 keyword       =  { keyword_k ~ sp* ~ keyword_value ~ sp* }
 
+// Source code blocks: #+BEGIN_SRC lang ... #+END_SRC
+src_block_begin_tag = _{ keyword_start ~ ^"BEGIN_SRC" }
+src_block_end_tag   = _{ keyword_start ~ ^"END_SRC" }
+src_block_lang      =  { (!newline ~ ANY)* }
+src_block_body      =  { (!(newline ~ sp* ~ src_block_end_tag) ~ ANY)* }
+src_block           =  {
+    src_block_begin_tag ~ sp* ~ src_block_lang ~ newline ~
+    src_block_body ~ newline ~
+    sp* ~ src_block_end_tag ~ sp* ~ newline*
+}
+
 tags      =  { ":" ~ tag_inner+ ~ ":" }
 tag_inner = _{ tag ~ (":" ~ tag)* }
 tag       = ${
     (!(":") ~ ANY)+
 }
 
+// Priority cookie: [#A], [#B], [#C], etc.
+priority = { "[#" ~ priority_value ~ "]" }
+priority_value = { ASCII_ALPHA }
+
 headline_symbol = { "*"+ }
-todo_status     = { ^"TODO" | ^"DOING" | ^"DONE" }
+todo_status     = { (^"TODO" | ^"DOING" | ^"DONE" | ^"NEXT" | ^"WAITING" | ^"CANCELLED" | ^"CANCELED" | ^"HOLD" | ^"SOMEDAY") }
 headline_title  = { (!(tags | newline) ~ ANY)+ }
-headline        = { sp* ~ headline_symbol ~ sp* ~ todo_status* ~ sp* ~ headline_title ~ sp* ~ tags* }
+headline        = { sp* ~ headline_symbol ~ sp* ~ todo_status{0,1} ~ sp* ~ priority{0,1} ~ sp* ~ headline_title ~ sp* ~ tags* }
 
 section_text = { !headline ~ (!NEWLINE ~ ANY)+ }
 section_link = { !headline ~ (!NEWLINE ~ hyperlink) }
@@ -88,10 +102,13 @@ section_content = _{
     (section_text_block ~ newline)
 }
 
+// NOTE: src_block MUST come before keyword to prevent #+BEGIN_SRC from
+// being consumed as a generic keyword.
 section_meta = _{
     scheduling ~ newline*
   | properties ~ newline*
   | drawer ~ newline*
+  | src_block ~ newline*
   | keyword ~ newline*
 }
 section      =  {

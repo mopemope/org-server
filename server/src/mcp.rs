@@ -114,6 +114,25 @@ impl OrgMcpServer {
         debug!(%query, results = matches.len(), "search completed");
         Ok(matches)
     }
+
+    /// Walk all managed org files and parse them, yielding (Org, Path) pairs.
+    async fn walk_org_files(&self) -> Vec<(org_parser::Org, PathBuf)> {
+        let mut results = Vec::new();
+        for base in self.org_paths.iter() {
+            for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("org") {
+                    continue;
+                }
+                if let Ok(org) = crate::parse::parse_org_file(entry.path()).await {
+                    results.push((org, entry.into_path()));
+                }
+            }
+        }
+        results
+    }
 }
 
 pub struct McpServerHandle {
@@ -228,18 +247,8 @@ impl OrgMcpServer {
             .filter(|s| !s.is_empty());
         let mut todos = Vec::new();
 
-        for base in self.org_paths.iter() {
-            for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
-                if !entry.file_type().is_file() {
-                    continue;
-                }
-                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("org") {
-                    continue;
-                }
-                if let Ok(org) = crate::parse::parse_org_file(entry.path()).await {
-                    self.collect_todos(&org.sections, &mut todos, entry.path(), keyword_filter);
-                }
-            }
+        for (org, path) in self.walk_org_files().await {
+            self.collect_todos(&org.sections, &mut todos, &path, keyword_filter);
         }
 
         Ok(Json(ListTodosResponse { todos }))
@@ -259,21 +268,34 @@ impl OrgMcpServer {
         let now = chrono::Local::now().naive_local();
         let max_date = now + chrono::Duration::days(days as i64);
 
-        for base in self.org_paths.iter() {
-            for entry in WalkDir::new(base).into_iter().filter_map(Result::ok) {
-                if !entry.file_type().is_file() {
-                    continue;
-                }
-                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("org") {
-                    continue;
-                }
-                if let Ok(org) = crate::parse::parse_org_file(entry.path()).await {
-                    self.collect_agenda(&org.sections, &mut items, entry.path(), now, max_date);
-                }
-            }
+        for (org, path) in self.walk_org_files().await {
+            self.collect_agenda(&org.sections, &mut items, &path, now, max_date);
         }
 
         Ok(Json(GetAgendaResponse { items }))
+    }
+
+    #[tool(
+        name = "search_by_tag",
+        description = "Search Org files for sections with a specific tag."
+    )]
+    async fn search_by_tag(
+        &self,
+        params: Parameters<SearchByTagParams>,
+    ) -> Result<Json<SearchByTagResponse>, McpError> {
+        let params = params.0;
+        let tag = params.tag.trim();
+        if tag.is_empty() {
+            return Err(McpError::invalid_params("tag must not be empty", None));
+        }
+
+        let mut results = Vec::new();
+
+        for (org, path) in self.walk_org_files().await {
+            self.collect_by_tag(&org.sections, &mut results, &path, tag);
+        }
+
+        Ok(Json(SearchByTagResponse { results }))
     }
 
     fn collect_todos(
@@ -329,6 +351,29 @@ impl OrgMcpServer {
                 }
             }
             self.collect_agenda(&section.sections, items, file_path, now, max_date);
+        }
+    }
+
+    fn collect_by_tag(
+        &self,
+        sections: &[org_parser::Section],
+        results: &mut Vec<TaggedSection>,
+        file_path: &Path,
+        tag: &str,
+    ) {
+        for section in sections {
+            if section.tags.iter().any(|t| t.eq_ignore_ascii_case(tag)) {
+                let rel_path = self.resolve_relative_path(file_path);
+                results.push(TaggedSection {
+                    file: rel_path,
+                    line: section.pos.line,
+                    headline: section.title.trim().to_string(),
+                    tags: section.tags.clone(),
+                    todo_status: section.todo_status.clone(),
+                    priority: section.priority.clone(),
+                });
+            }
+            self.collect_by_tag(&section.sections, results, file_path, tag);
         }
     }
 }
@@ -426,6 +471,28 @@ pub struct AgendaItem {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct GetAgendaResponse {
     pub items: Vec<AgendaItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct SearchByTagParams {
+    pub tag: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct TaggedSection {
+    pub file: String,
+    pub line: usize,
+    pub headline: String,
+    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub todo_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct SearchByTagResponse {
+    pub results: Vec<TaggedSection>,
 }
 
 fn map_resolver_error(err: FileResolverError) -> McpError {
