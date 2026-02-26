@@ -149,7 +149,7 @@ async fn get_org_file(
     State(state): State<AppState>,
     Path(filepath): Path<String>,
     Query(query): Query<OrgFileQuery>,
-) -> ApiResult<Json<serde_json::Value>> {
+) -> ApiResult<Json<Box<serde_json::value::RawValue>>> {
     debug!("GET /api/orgs/{} with query: {:?}", filepath, query);
 
     // クエリパラメータの検証
@@ -172,13 +172,14 @@ async fn get_org_file(
 
     // JSON変換
     let json_string = org.to_json_with_config(&json_config)?;
-    let json_value: serde_json::Value =
-        serde_json::from_str(&json_string).map_err(|e| ApiError::JsonConversion {
+    let raw_value = serde_json::value::RawValue::from_string(json_string).map_err(|e| {
+        ApiError::JsonConversion {
             source: org_parser::JsonConversionError::SerializationError { source: e },
-        })?;
+        }
+    })?;
 
     debug!("Successfully converted org file to JSON: {}", filepath);
-    Ok(Json(json_value))
+    Ok(Json(raw_value))
 }
 
 /// クエリパラメータの検証

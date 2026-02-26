@@ -263,7 +263,7 @@ impl OrgMcpServer {
         params: Parameters<GetAgendaParams>,
     ) -> Result<Json<GetAgendaResponse>, McpError> {
         let params = params.0;
-        let days = params.days.unwrap_or(7);
+        let days = params.days.unwrap_or(7).min(3650);
         let mut items = Vec::new();
         let now = chrono::Local::now().naive_local();
         let max_date = now + chrono::Duration::days(days as i64);

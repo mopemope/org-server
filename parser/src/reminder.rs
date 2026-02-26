@@ -278,8 +278,8 @@ mod tests {
         ];
 
         for (input, expected) in cases {
-            let dt =
-                parse_scheduling_datetime(input).expect(&format!("Failed to parse: {}", input));
+            let dt = parse_scheduling_datetime(input)
+                .unwrap_or_else(|| panic!("Failed to parse: {}", input));
             let expected_dt = NaiveDateTime::parse_from_str(expected, "%Y-%m-%d %H:%M:%S").unwrap();
             assert_eq!(dt, expected_dt, "Failed for input: {}", input);
         }

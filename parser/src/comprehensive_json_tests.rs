@@ -502,11 +502,11 @@ Some content here.
         for filename in test_files {
             if let Ok(org) = parse_test_resource(filename) {
                 let config = JsonConversionConfig::default();
-                if let Ok(json) = org.to_json_with_config(&config) {
-                    if let Ok(analysis) = analyze_json_structure(&json) {
-                        for key in analysis.unique_keys.keys() {
-                            *schema_keys.entry(key.clone()).or_insert(0) += 1;
-                        }
+                if let Ok(json) = org.to_json_with_config(&config)
+                    && let Ok(analysis) = analyze_json_structure(&json)
+                {
+                    for key in analysis.unique_keys.keys() {
+                        *schema_keys.entry(key.clone()).or_insert(0) += 1;
                     }
                 }
             }
