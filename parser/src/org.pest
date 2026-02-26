@@ -76,6 +76,26 @@ src_block           =  {
     sp* ~ src_block_end_tag ~ sp* ~ newline*
 }
 
+// Plain list items
+list_bullet_unordered = { "-" | "+" }
+list_bullet_ordered   = { ASCII_DIGIT+ ~ ("." | ")") }
+list_bullet           = _{ list_bullet_unordered | list_bullet_ordered }
+
+checkbox       = { "[" ~ checkbox_state ~ "]" }
+checkbox_state = { "X" | " " | "-" }
+
+list_item_text        = { (!newline ~ ANY)+ }
+list_description_sep  = _{ " :: " }
+list_description_term = { (!list_description_sep ~ !newline ~ ANY)+ }
+list_description_body = { (!newline ~ ANY)+ }
+
+list_item = {
+    sp* ~ list_bullet ~ sp+ ~ checkbox? ~ sp* ~
+    (list_description_term ~ list_description_sep ~ list_description_body | list_item_text)?
+}
+
+plain_list = { (list_item ~ newline)+ }
+
 tags      =  { ":" ~ tag_inner+ ~ ":" }
 tag_inner = _{ tag ~ (":" ~ tag)* }
 tag       = ${
@@ -104,12 +124,15 @@ section_content = _{
 
 // NOTE: src_block MUST come before keyword to prevent #+BEGIN_SRC from
 // being consumed as a generic keyword.
+// NOTE: plain_list MUST come before section_content to prevent list items
+// from being consumed as plain text.
 section_meta = _{
     scheduling ~ newline*
   | properties ~ newline*
   | drawer ~ newline*
   | src_block ~ newline*
   | keyword ~ newline*
+  | plain_list ~ newline*
 }
 section      =  {
     headline ~ newline+ ~ (section_meta | section_content)*

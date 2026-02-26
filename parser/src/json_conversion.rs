@@ -1,5 +1,6 @@
 use crate::parser::{
-    CodeBlock, Content, Drawer, Keyword, Org, Pos, Properties, Property, Row, Scheduling, Section,
+    CheckboxState, CodeBlock, Content, Drawer, Keyword, ListItem, ListKind, Org, PlainList, Pos,
+    Properties, Property, Row, Scheduling, Section,
 };
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -93,6 +94,7 @@ fn process_sections_with_depth_limit(
             keywords: convert_keywords(&section.keywords, config),
             contents: convert_rows(&section.contents, config),
             code_blocks: convert_code_blocks(&section.code_blocks, config),
+            lists: convert_lists(&section.lists, config),
             scheduling: convert_scheduling(&section.scheduling, config),
             sections: process_sections_with_depth_limit(
                 &section.sections,
@@ -258,6 +260,59 @@ fn convert_code_blocks(
         .collect()
 }
 
+/// 位置情報を制御可能なListItem
+#[derive(Debug, Serialize, Deserialize)]
+struct SafeListItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    indent: usize,
+    bullet: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    checkbox: Option<CheckboxState>,
+    kind: ListKind,
+    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description_term: Option<String>,
+}
+
+/// 位置情報を制御可能なPlainList
+#[derive(Debug, Serialize, Deserialize)]
+struct SafePlainList {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pos: Option<Pos>,
+    items: Vec<SafeListItem>,
+}
+
+fn convert_lists(lists: &[PlainList], config: &JsonConversionConfig) -> Vec<SafePlainList> {
+    lists
+        .iter()
+        .map(|list| SafePlainList {
+            pos: if config.include_position {
+                Some(list.pos.clone())
+            } else {
+                None
+            },
+            items: list
+                .items
+                .iter()
+                .map(|item| SafeListItem {
+                    pos: if config.include_position {
+                        Some(item.pos.clone())
+                    } else {
+                        None
+                    },
+                    indent: item.indent,
+                    bullet: item.bullet.clone(),
+                    checkbox: item.checkbox.clone(),
+                    kind: item.kind.clone(),
+                    text: item.text.clone(),
+                    description_term: item.description_term.clone(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
 /// 位置情報を制御可能なDrawer
 #[derive(Debug, Serialize, Deserialize)]
 struct SafeDrawer {
@@ -365,6 +420,8 @@ struct SafeSection {
     contents: Vec<SafeRow>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     code_blocks: Vec<SafeCodeBlock>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    lists: Vec<SafePlainList>,
     scheduling: Vec<SafeScheduling>,
     sections: Vec<SafeSection>,
 }
@@ -499,6 +556,7 @@ impl Org {
                 keywords: convert_keywords(&section.keywords, config),
                 contents: convert_rows(&section.contents, config),
                 code_blocks: convert_code_blocks(&section.code_blocks, config),
+                lists: convert_lists(&section.lists, config),
                 scheduling: convert_scheduling(&section.scheduling, config),
                 sections: process_sections_with_depth_limit(&section.sections, config, 0)?,
             };
@@ -664,6 +722,26 @@ fn convert_safe_section_to_section(safe_section: SafeSection) -> Section {
                 pos: cb.pos.unwrap_or_default(),
                 language: cb.language,
                 body: cb.body,
+            })
+            .collect(),
+        lists: safe_section
+            .lists
+            .into_iter()
+            .map(|list| PlainList {
+                pos: list.pos.unwrap_or_default(),
+                items: list
+                    .items
+                    .into_iter()
+                    .map(|item| ListItem {
+                        pos: item.pos.unwrap_or_default(),
+                        indent: item.indent,
+                        bullet: item.bullet,
+                        checkbox: item.checkbox,
+                        kind: item.kind,
+                        text: item.text,
+                        description_term: item.description_term,
+                    })
+                    .collect(),
             })
             .collect(),
         scheduling: safe_section

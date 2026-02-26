@@ -161,6 +161,41 @@ impl Display for SchedulingDisplay<'_> {
     }
 }
 
+pub struct PlainListDisplay<'a> {
+    pub inner: &'a parser::PlainList,
+}
+
+impl std::fmt::Display for PlainListDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (i, item) in self.inner.items.iter().enumerate() {
+            let indent = " ".repeat(item.indent);
+            write!(f, "{}{}", indent, item.bullet)?;
+            if let Some(ref cb) = item.checkbox {
+                let cb_str = match cb {
+                    parser::CheckboxState::Unchecked => "[ ]",
+                    parser::CheckboxState::Checked => "[X]",
+                    parser::CheckboxState::Partial => "[-]",
+                };
+                write!(f, " {cb_str}")?;
+            }
+            if let Some(ref term) = item.description_term {
+                write!(f, " {term} ::")?;
+            }
+            write!(f, " {}", item.text)?;
+            if i < self.inner.items.len() - 1 {
+                writeln!(f)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Display for PlainListDisplay<'_> {
+    fn line(&self) -> usize {
+        self.inner.pos.line
+    }
+}
+
 pub struct SectionDisplay<'a> {
     pub inner: &'a parser::Section,
 }
@@ -183,6 +218,9 @@ impl std::fmt::Display for SectionDisplay<'_> {
         }
         for con in &self.inner.contents {
             contents.push(Box::new(con.display()));
+        }
+        for list in &self.inner.lists {
+            contents.push(Box::new(list.display()));
         }
         for sec in &self.inner.sections {
             contents.push(Box::new(sec.display()));

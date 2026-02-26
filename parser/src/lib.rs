@@ -20,5 +20,7 @@ pub use json_conversion::{JsonConversionConfig, JsonConversionError};
 pub use parser::Org;
 pub use parser::OrgParser;
 pub use parser::parse;
-pub use parser::{CodeBlock, Context, Pos, Scheduling, Section};
+pub use parser::{
+    CheckboxState, CodeBlock, Context, ListItem, ListKind, PlainList, Pos, Scheduling, Section,
+};
 pub use reminder::{DEFAULT_REMINDER_INTERVALS, Reminder, ReminderConfig};

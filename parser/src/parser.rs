@@ -206,6 +206,62 @@ pub struct CodeBlock {
     pub body: String,
 }
 
+/// Checkbox state for list items
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum CheckboxState {
+    Unchecked,
+    Checked,
+    Partial,
+}
+
+/// Kind of list item
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum ListKind {
+    Unordered,
+    Ordered,
+    Description,
+}
+
+/// A single list item
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ListItem {
+    pub pos: Pos,
+    pub indent: usize,
+    pub bullet: String,
+    pub checkbox: Option<CheckboxState>,
+    pub kind: ListKind,
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description_term: Option<String>,
+}
+
+impl Default for ListItem {
+    fn default() -> Self {
+        Self {
+            pos: Pos::default(),
+            indent: 0,
+            bullet: String::new(),
+            checkbox: None,
+            kind: ListKind::Unordered,
+            text: String::new(),
+            description_term: None,
+        }
+    }
+}
+
+/// A plain list containing multiple items
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct PlainList {
+    pub pos: Pos,
+    pub items: Vec<ListItem>,
+}
+
+impl PlainList {
+    pub const fn display(&self) -> display::PlainListDisplay<'_> {
+        display::PlainListDisplay { inner: self }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Row {
     pub pos: Pos,
@@ -232,6 +288,7 @@ pub struct Section {
     pub keywords: Vec<Keyword>,
     pub contents: Vec<Row>,
     pub code_blocks: Vec<CodeBlock>,
+    pub lists: Vec<PlainList>,
     pub sections: Vec<Section>,
     pub scheduling: Vec<Scheduling>,
 }
@@ -269,6 +326,7 @@ impl Default for Section {
             keywords: Vec::default(),
             contents: Vec::default(),
             code_blocks: Vec::default(),
+            lists: Vec::default(),
             sections: Vec::default(),
             scheduling: Vec::default(),
         }
@@ -390,6 +448,63 @@ fn parse_keyword(_ctx: &mut Context, pair: Pair<'_, Rule>) -> Keyword {
         }
     }
     kw
+}
+
+fn parse_list_item(pair: Pair<'_, Rule>) -> ListItem {
+    let mut item = ListItem::default();
+    let (line, col) = pair.line_col();
+    item.pos = Pos::new(col, line);
+
+    // Calculate indent from leading whitespace
+    let raw = pair.as_str();
+    item.indent = raw.len() - raw.trim_start().len();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::list_bullet_unordered => {
+                item.bullet = inner.as_str().to_string();
+                item.kind = ListKind::Unordered;
+            }
+            Rule::list_bullet_ordered => {
+                item.bullet = inner.as_str().to_string();
+                item.kind = ListKind::Ordered;
+            }
+            Rule::checkbox => {
+                if let Some(state) = inner.into_inner().next() {
+                    item.checkbox = Some(match state.as_str() {
+                        "X" => CheckboxState::Checked,
+                        "-" => CheckboxState::Partial,
+                        _ => CheckboxState::Unchecked,
+                    });
+                }
+            }
+            Rule::list_description_term => {
+                item.description_term = Some(inner.as_str().to_string());
+                item.kind = ListKind::Description;
+            }
+            Rule::list_description_body => {
+                item.text = inner.as_str().to_string();
+            }
+            Rule::list_item_text => {
+                item.text = inner.as_str().to_string();
+            }
+            _ => {}
+        }
+    }
+    item
+}
+
+fn parse_plain_list(pair: Pair<'_, Rule>) -> PlainList {
+    let mut list = PlainList::default();
+    let (line, col) = pair.line_col();
+    list.pos = Pos::new(col, line);
+
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::list_item {
+            list.items.push(parse_list_item(inner));
+        }
+    }
+    list
 }
 
 fn parse_src_block(pair: Pair<'_, Rule>) -> CodeBlock {
@@ -541,6 +656,10 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
             Rule::src_block => {
                 let code_block = parse_src_block(pair);
                 section.code_blocks.push(code_block);
+            }
+            Rule::plain_list => {
+                let list = parse_plain_list(pair);
+                section.lists.push(list);
             }
             Rule::section => {
                 let sec = parse_section(ctx, pair);
@@ -1530,7 +1649,90 @@ CONTENT2
         let org = parse(&mut ctx, content).unwrap();
         assert_eq!(1, org.sections.len());
         let sec = &org.sections[0];
+        assert_eq!(1, org.sections.len());
+        let sec = &org.sections[0];
         assert!(sec.todo_status.is_none());
         assert_eq!("Regular heading", sec.title);
+    }
+
+    #[test]
+    fn test_plain_list_unordered() {
+        init();
+        let content = "* Section\n- Item 1\n+ Item 2\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let sec = &org.sections[0];
+        assert_eq!(1, sec.lists.len());
+        let list = &sec.lists[0];
+        assert_eq!(2, list.items.len());
+        assert_eq!("-", list.items[0].bullet);
+        assert_eq!("Item 1", list.items[0].text);
+        assert_eq!("+", list.items[1].bullet);
+        assert_eq!("Item 2", list.items[1].text);
+    }
+
+    #[test]
+    fn test_plain_list_ordered() {
+        init();
+        let content = "* Section\n1. First\n2) Second\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let sec = &org.sections[0];
+        assert_eq!(1, sec.lists.len());
+        let list = &sec.lists[0];
+        assert_eq!(2, list.items.len());
+        assert_eq!("1.", list.items[0].bullet);
+        assert_eq!("First", list.items[0].text);
+        assert_eq!("2)", list.items[1].bullet);
+        assert_eq!("Second", list.items[1].text);
+    }
+
+    #[test]
+    fn test_plain_list_checkbox() {
+        init();
+        let content = "* Section\n- [ ] Unchecked\n- [X] Checked\n- [-] Partial\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let list = &org.sections[0].lists[0];
+        assert_eq!(Some(CheckboxState::Unchecked), list.items[0].checkbox);
+        assert_eq!(Some(CheckboxState::Checked), list.items[1].checkbox);
+        assert_eq!(Some(CheckboxState::Partial), list.items[2].checkbox);
+    }
+
+    #[test]
+    fn test_plain_list_description() {
+        init();
+        let content = "* Section\n- Term :: Description\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let item = &org.sections[0].lists[0].items[0];
+        assert_eq!(ListKind::Description, item.kind);
+        assert_eq!(Some("Term".to_string()), item.description_term);
+        assert_eq!("Description", item.text);
+    }
+
+    #[test]
+    fn test_plain_list_nested() {
+        init();
+        let content = "* Section\n- L1\n  - L2\n    - L3\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let list = &org.sections[0].lists[0];
+        assert_eq!(3, list.items.len());
+        assert_eq!(0, list.items[0].indent);
+        assert_eq!(2, list.items[1].indent);
+        assert_eq!(4, list.items[2].indent);
+    }
+
+    #[test]
+    fn test_plain_list_display() {
+        init();
+        let content = "* Section\n- Item 1\n- [X] Done\n- Term :: Info\n\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap();
+        let displayed = org.display().to_string();
+        assert!(displayed.contains("- Item 1"));
+        assert!(displayed.contains("- [X] Done"));
+        assert!(displayed.contains("- Term :: Info"));
     }
 }
