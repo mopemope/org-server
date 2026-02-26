@@ -75,6 +75,23 @@ org-server server --config /path/to/config.toml --port 8080 --host 0.0.0.0
 - `--port <PORT>`: Server port (default: 3000)
 - `--host <HOST>`: Server host (default: 127.0.0.1)
 
+### MCP (Model Context Protocol)
+
+The server exposes MCP tools via SSE transport at `http://<mcp_host>:<mcp_port>/mcp/sse`.
+
+Available MCP tools:
+
+- **`search_org_files`**: Search managed Org files for a query string
+- **`get_org_file_content`**: Get the raw content of an Org file
+- **`list_todos`**: List TODO items, optionally filtered by keyword
+- **`get_agenda`**: Get upcoming SCHEDULED and DEADLINE items
+
+#### Server Options
+
+- `--config <FILE>`: Configuration file path
+- `--port <PORT>`: Server port (default: 3000)
+- `--host <HOST>`: Server host (default: 127.0.0.1)
+
 ## Supported Org-mode Elements
 
 The parser supports a comprehensive set of Org-mode syntax:
@@ -134,11 +151,10 @@ Create a configuration file for server mode:
 
 ```toml
 # org-server.toml
+org_path = ["~/org"]
 server_port = 3000
-reminder_intervals = [1800, 600, 60]  # 30min, 10min, 1min before
-
-[paths]
-org_files = ["~/Documents/*.org"]
+mcp_host = "127.0.0.1"  # optional, default: 127.0.0.1
+mcp_port = 3001          # optional, default: 3001
 ```
 
 ## Development

@@ -25,7 +25,7 @@ impl OrgWatcher {
             .worker_threads(1)
             .enable_all()
             .build()
-            .unwrap();
+            .map_err(notify::Error::io)?;
 
         let debouncer = new_debouncer(
             std::time::Duration::from_millis(500),

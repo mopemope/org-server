@@ -61,7 +61,7 @@ impl OrgFileQuery {
 
 /// サーバー起動
 pub async fn run_server(
-    port: u32,
+    port: u16,
     _config: Config,
     file_resolver: Arc<FileResolver>,
 ) -> Result<()> {

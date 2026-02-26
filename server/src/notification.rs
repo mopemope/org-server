@@ -7,7 +7,7 @@ pub fn notify(summary: &str, body: &str) -> Result<()> {
         .body(body)
         .icon("emacs")
         .appname("Emacs Reminder")
-        .timeout(0)
+        .timeout(30000)
         .show()?;
     Ok(())
 }

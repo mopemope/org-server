@@ -285,15 +285,16 @@ impl OrgMcpServer {
     ) {
         for section in sections {
             if let Some(ref status) = section.todo_status
-                && keyword_filter.is_none_or(|filter| status.eq_ignore_ascii_case(filter)) {
-                    let rel_path = self.resolve_relative_path(file_path);
-                    todos.push(TodoItem {
-                        file: rel_path,
-                        line: section.pos.line,
-                        headline: section.title.trim().to_string(),
-                        keyword: status.clone(),
-                    });
-                }
+                && keyword_filter.is_none_or(|filter| status.eq_ignore_ascii_case(filter))
+            {
+                let rel_path = self.resolve_relative_path(file_path);
+                todos.push(TodoItem {
+                    file: rel_path,
+                    line: section.pos.line,
+                    headline: section.title.trim().to_string(),
+                    keyword: status.clone(),
+                });
+            }
             self.collect_todos(&section.sections, todos, file_path, keyword_filter);
         }
     }

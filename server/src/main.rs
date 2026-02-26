@@ -27,48 +27,7 @@ use std::sync::Arc;
 async fn main() -> Result<()> {
     init_tracing();
 
-    // Manual help handling as a workaround
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && (args[1] == "--help" || args[1] == "-h") {
-        Cli::print_help(None);
-        return Ok(());
-    }
-
-    if args.len() > 1 && (args[1] == "--version" || args[1] == "-V") {
-        println!("org-server 0.1.0");
-        return Ok(());
-    }
-
-    // Handle help subcommand manually
-    if args.len() > 1 && args[1] == "help" {
-        let subcommand = if args.len() > 2 {
-            Some(args[2].as_str())
-        } else {
-            None
-        };
-        Cli::print_help(subcommand);
-        return Ok(());
-    }
-
-    // Handle subcommand help
-    if args.len() > 2 && args[1] == "parse" && (args[2] == "--help" || args[2] == "-h") {
-        Cli::print_help(Some("parse"));
-        return Ok(());
-    }
-
-    if args.len() > 2 && args[1] == "server" && (args[2] == "--help" || args[2] == "-h") {
-        Cli::print_help(Some("server"));
-        return Ok(());
-    }
-
-    // Handle CLI parsing with proper error handling
-    let cli = match Cli::try_parse() {
-        Ok(cli) => cli,
-        Err(err) => {
-            // For other errors, let clap handle them
-            err.exit();
-        }
-    };
+    let cli = Cli::parse();
 
     match cli.get_command() {
         Commands::Parse {
@@ -121,20 +80,11 @@ async fn main() -> Result<()> {
 
             // Use the port from CLI args if provided, otherwise use config
             let server_port = if port == 3000 {
-                u16::try_from(server_config.server_port).unwrap_or_else(|_| {
-                    eprintln!(
-                        "Warning: server_port {} is too large for u16, using default 3000",
-                        server_config.server_port
-                    );
-                    3000
-                })
+                server_config.server_port
             } else {
                 port
             };
-            web::run_server(server_port.into(), server_config, file_resolver).await?;
-        }
-        Commands::Help { subcommand } => {
-            Cli::print_help(subcommand.as_deref());
+            web::run_server(server_port, server_config, file_resolver).await?;
         }
     }
 

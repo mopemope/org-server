@@ -26,7 +26,7 @@ walkdir = "2"
 futures = { version = "0.3", default-features = false }
 notify-rust = { version = "4", features = ["serde", "zbus"], default-features = false }
 notify = { version = "8", default-features = false }
-thiserror = "2.0"
+thiserror.workspace = true
 tower = "0.5"
 rmcp = { version = "=0.6.4", features = ["transport-sse-server"] }
 rmcp-macros = "0.6.4"
