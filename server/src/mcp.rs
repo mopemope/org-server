@@ -766,6 +766,7 @@ mod tests {
         Config {
             org_path: vec![base.display().to_string()],
             server_port: 3000,
+            server_host: "127.0.0.1".to_string(),
             mcp_host: "127.0.0.1".to_string(),
             mcp_port: 3001,
         }

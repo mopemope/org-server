@@ -19,6 +19,50 @@ pub enum TargetEntry {
     },
 }
 
+/// Helper function to perform an atomic file write to prevent data corruption
+async fn atomic_write(path: &Path, content: &str) -> Result<()> {
+    // Write to a temporary file in the same directory, then rename it to the target file.
+    // This ensures atomic replacement on most POSIX and Windows file systems.
+    let parent = path.parent().unwrap_or(Path::new(""));
+    let temp_dir = if parent.as_os_str().is_empty() {
+        Path::new(".")
+    } else {
+        parent
+    };
+
+    // We use tempfile::Builder to create a temp file securely in the same directory
+    // Note: async tempfile creation isn't easily available, so we use spawn_blocking
+    // or just generate a random name and use tokio::fs.
+    let temp_name = format!(".{}.tmp", uuid::Uuid::new_v4());
+    let temp_path = temp_dir.join(&temp_name);
+
+    // Write content to temp file
+    fs::write(&temp_path, content).await.map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to write to temporary file {}: {}",
+            temp_path.display(),
+            e
+        )
+    })?;
+
+    // Atomic rename
+    fs::rename(&temp_path, path).await.map_err(|e| {
+        // Attempt to clean up temp file if rename fails
+        let temp_path_clone = temp_path.clone();
+        tokio::spawn(async move {
+            let _ = fs::remove_file(temp_path_clone).await;
+        });
+        anyhow::anyhow!(
+            "Failed to atomically rename {} to {}: {}",
+            temp_path.display(),
+            path.display(),
+            e
+        )
+    })?;
+
+    Ok(())
+}
+
 impl TargetEntry {
     pub fn resolve(&self, content: &str) -> Result<usize> {
         let mut org_ctx = org_parser::Context::new();
@@ -224,7 +268,7 @@ pub async fn do_update_todo_status(
 
     lines[target_idx] = &new_line;
 
-    fs::write(resolved, lines.join("\n")).await?;
+    atomic_write(resolved, &lines.join("\n")).await?;
 
     Ok(format!(
         "Successfully updated line {} to status '{}'",
@@ -262,7 +306,7 @@ pub async fn do_append_task(
     content.push_str(&new_line);
     content.push('\n');
 
-    fs::write(resolved, content).await?;
+    atomic_write(resolved, &content).await?;
 
     Ok(format!("Successfully appended task '{}'", title))
 }
@@ -325,7 +369,7 @@ pub async fn do_update_scheduling(
         lines.insert(target_idx + 1, &new_schedule_str_owned);
     }
 
-    fs::write(resolved, lines.join("\n")).await?;
+    atomic_write(resolved, &lines.join("\n")).await?;
 
     Ok(format!("Successfully updated {}", s_type))
 }
@@ -388,9 +432,10 @@ pub fn find_subtree_end(lines: &[&str], start_idx: usize) -> usize {
 
     for (i, line) in lines.iter().enumerate().skip(start_idx + 1) {
         if let Some(l) = get_headline_level(line)
-            && l <= level {
-                return i;
-            }
+            && l <= level
+        {
+            return i;
+        }
     }
     lines.len()
 }
@@ -423,7 +468,7 @@ pub async fn do_insert_content(
     // Insert after the target_idx
     lines.insert(target_idx + 1, &insert_str);
 
-    fs::write(resolved, lines.join("\n")).await?;
+    atomic_write(resolved, &lines.join("\n")).await?;
 
     Ok(format!(
         "Successfully inserted content after line {}",
@@ -501,7 +546,7 @@ pub async fn do_update_headline(
 
     new_lines.extend_from_slice(&lines[end_idx..]);
 
-    fs::write(resolved, new_lines.join("\n")).await?;
+    atomic_write(resolved, &new_lines.join("\n")).await?;
 
     Ok(format!(
         "Successfully updated headline at line {}",
@@ -535,7 +580,7 @@ pub async fn do_delete_headline(resolved: &Path, target: &TargetEntry) -> Result
     new_lines.extend_from_slice(&lines[..target_idx]);
     new_lines.extend_from_slice(&lines[end_idx..]);
 
-    fs::write(resolved, new_lines.join("\n")).await?;
+    atomic_write(resolved, &new_lines.join("\n")).await?;
 
     Ok(format!(
         "Successfully deleted headline and its subtree at line {}",

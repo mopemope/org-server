@@ -75,6 +75,7 @@ async fn shutdown_signal() {
 
 /// サーバー起動
 pub async fn run_server(
+    host: &str,
     port: u16,
     _config: Config,
     file_resolver: Arc<FileResolver>,
@@ -108,7 +109,7 @@ pub async fn run_server(
     let max_attempts = 10;
 
     for attempt in 0..max_attempts {
-        let addr = format!("0.0.0.0:{}", current_port);
+        let addr = format!("{}:{}", host, current_port);
         match tokio::net::TcpListener::bind(&addr).await {
             Ok(listener) => {
                 if current_port != port {
@@ -413,6 +414,7 @@ mod tests {
         Config {
             org_path: org_paths,
             server_port: 3000,
+            server_host: "127.0.0.1".to_string(),
             mcp_host: "127.0.0.1".to_string(),
             mcp_port: 3001,
         }

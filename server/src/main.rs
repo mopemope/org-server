@@ -92,7 +92,15 @@ async fn main() -> Result<()> {
             } else {
                 port
             };
-            web::run_server(server_port, server_config, file_resolver).await?;
+
+            // Use the host from CLI args if it's not the default, otherwise use config
+            let server_host = if host == "127.0.0.1" {
+                server_config.server_host.clone()
+            } else {
+                host
+            };
+
+            web::run_server(&server_host, server_port, server_config, file_resolver).await?;
         }
     }
 
