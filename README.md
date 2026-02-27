@@ -8,7 +8,8 @@ A Rust-based server for parsing Org-mode files and managing reminders with JSON 
 - **Org-mode File Parser**: Comprehensive parsing of Org-mode syntax using Pest grammar
 - **Reminder System**: Desktop notifications for scheduled tasks and deadlines
 - **File Monitoring**: Automatic detection of changes in Org-mode files
-- **Web Server**: Basic HTTP server for future API extensions
+- **Web Server**: HTTP API for interacting with and modifying Org files (Read & Write)
+- **MCP Server**: Exposes Org-mode operations to LLMs via Model Context Protocol
 
 ### JSON Export (New!)
 - **Command-line JSON Export**: Convert Org-mode files to structured JSON format
@@ -66,7 +67,7 @@ Run as a background service for file monitoring and reminders:
 org-server server
 
 # Start server with custom configuration
-org-server server --config /path/to/config.toml --port 8080 --host 0.0.0.0
+org-server server --config /path/to/config.toml --port 3000 --host 127.0.0.1
 ```
 
 #### Server Options
@@ -85,12 +86,29 @@ Available MCP tools:
 - **`get_org_file_content`**: Get the raw content of an Org file
 - **`list_todos`**: List TODO items, optionally filtered by keyword
 - **`get_agenda`**: Get upcoming SCHEDULED and DEADLINE items
+- **`insert_content`**: Insert new content into an Org file
+- **`update_headline`**: Update an existing headline's title and body
+- **`delete_headline`**: Delete a headline and its entire subtree
+- **`update_todo_status`**: Change the TODO state of a task
+- **`update_scheduling`**: Add or update SCHEDULED/DEADLINE timestamps
+- **`append_task`**: Append a new top-level task to an Org file
 
-#### Server Options
+### HTTP API
 
-- `--config <FILE>`: Configuration file path
-- `--port <PORT>`: Server port (default: 3000)
-- `--host <HOST>`: Server host (default: 127.0.0.1)
+The server provides RESTful HTTP APIs for direct interaction.
+
+**Read API**:
+- `GET /api/org/{filepath}`: Retrieve the parsed JSON AST of an Org file
+
+**Write API**:
+- `POST /api/edit/headline/insert`: Insert text after a specific headline
+- `POST /api/edit/headline/update`: Update a headline
+- `POST /api/edit/headline/delete`: Delete a headline and its subtree
+- `POST /api/edit/todo`: Update the TODO status of a task
+- `POST /api/edit/schedule`: Update SCHEDULED or DEADLINE timestamps
+- `POST /api/edit/append`: Append a new top-level task
+
+> **Note**: Both MCP write tools and HTTP Write APIs support **Hybrid Targeting**. You can safely target entries using their unique `:ID:`, their hierarchical heading path, or a combination of line number and expected title. This completely prevents accidental data corruption caused by editing the wrong line.
 
 ## Supported Org-mode Elements
 
