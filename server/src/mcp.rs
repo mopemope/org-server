@@ -12,7 +12,9 @@ use rmcp::{
     schemars::{self, JsonSchema},
     serde::{Deserialize, Serialize},
     tool, tool_handler, tool_router,
-    transport::{SseServer, sse_server::SseServerConfig},
+    transport::streamable_http_server::{
+        StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
+    },
 };
 use std::collections::HashMap;
 use tokio::fs;
@@ -178,16 +180,25 @@ pub async fn start_mcp_server(
         }
     });
 
-    let sse_config = SseServerConfig {
-        bind,
-        sse_path: MCP_SSE_PATH.to_string(),
-        post_path: MCP_POST_PATH.to_string(),
-        ct: CancellationToken::new(),
-        sse_keep_alive: None,
-    };
+    let ct = CancellationToken::new();
+    let session_manager = Arc::new(LocalSessionManager::default());
 
-    let server = SseServer::serve_with_config(sse_config).await?;
-    let cancel_token = server.with_service(move || handler.clone());
+    let service = StreamableHttpService::new(
+        move || Ok(handler.clone()),
+        session_manager,
+        StreamableHttpServerConfig {
+            stateful_mode: true,
+            sse_keep_alive: None,
+            cancellation_token: ct.child_token(),
+            ..Default::default()
+        },
+    );
+
+    let router = axum::Router::new()
+        .route(MCP_SSE_PATH, axum::routing::any_service(service.clone()))
+        .route(MCP_POST_PATH, axum::routing::any_service(service));
+
+    let listener = tokio::net::TcpListener::bind(&bind).await?;
 
     info!(
         address = %bind,
@@ -196,7 +207,16 @@ pub async fn start_mcp_server(
         "MCP server listening"
     );
 
-    Ok(McpServerHandle { cancel_token })
+    tokio::spawn({
+        let ct = ct.clone();
+        async move {
+            let _ = axum::serve(listener, router)
+                .with_graceful_shutdown(async move { ct.cancelled_owned().await })
+                .await;
+        }
+    });
+
+    Ok(McpServerHandle { cancel_token: ct })
 }
 
 #[tool_router]
@@ -576,6 +596,7 @@ impl rmcp::ServerHandler for OrgMcpServer {
             server_info: Implementation {
                 name: "org-server-mcp".into(),
                 title: Some("Org Server MCP".into()),
+                description: Some("Org Server MCP".into()),
                 version: env!("CARGO_PKG_VERSION").into(),
                 icons: None,
                 website_url: None,
@@ -905,6 +926,25 @@ mod tests {
         assert!(content.contains(
             "* TODO Task to schedule\nSCHEDULED: <2024-05-01 Wed 10:00>\nSome description"
         ));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_start_mcp_server() -> AnyResult<()> {
+        let temp_dir = TempDir::new()?;
+        let config = build_test_config(temp_dir.path());
+        let resolver = Arc::new(FileResolver::new(&config));
+        let (_tx, rx) = tokio::sync::mpsc::channel(1);
+
+        // Start server on an ephemeral port to avoid conflicts
+        let handle = super::start_mcp_server("127.0.0.1", 0, resolver, &config, rx).await?;
+
+        // Ensure the server can start without error
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // Test graceful cancellation on drop
+        drop(handle);
 
         Ok(())
     }
