@@ -416,12 +416,8 @@ impl OrgMcpServer {
             .await
             .map_err(map_resolver_error)?;
 
-        match crate::edit::do_update_todo_status(
-            &resolved,
-            &params.target,
-            &params.new_status,
-        )
-        .await
+        match crate::edit::do_update_todo_status(&resolved, &params.target, &params.new_status)
+            .await
         {
             Ok(msg) => Ok(Json(WriteResponse {
                 success: true,
@@ -508,14 +504,11 @@ impl OrgMcpServer {
             .await
             .map_err(map_resolver_error)?;
 
-        match crate::edit::do_insert_content(
-            &resolved,
-            &params.target,
-            &params.content,
-        )
-        .await
-        {
-            Ok(msg) => Ok(Json(WriteResponse { success: true, message: msg })),
+        match crate::edit::do_insert_content(&resolved, &params.target, &params.content).await {
+            Ok(msg) => Ok(Json(WriteResponse {
+                success: true,
+                message: msg,
+            })),
             Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
     }
@@ -543,7 +536,10 @@ impl OrgMcpServer {
         )
         .await
         {
-            Ok(msg) => Ok(Json(WriteResponse { success: true, message: msg })),
+            Ok(msg) => Ok(Json(WriteResponse {
+                success: true,
+                message: msg,
+            })),
             Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
     }
@@ -563,13 +559,11 @@ impl OrgMcpServer {
             .await
             .map_err(map_resolver_error)?;
 
-        match crate::edit::do_delete_headline(
-            &resolved,
-            &params.target,
-        )
-        .await
-        {
-            Ok(msg) => Ok(Json(WriteResponse { success: true, message: msg })),
+        match crate::edit::do_delete_headline(&resolved, &params.target).await {
+            Ok(msg) => Ok(Json(WriteResponse {
+                success: true,
+                message: msg,
+            })),
             Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
     }
@@ -837,7 +831,10 @@ mod tests {
         let result = server
             .update_todo_status(Parameters(UpdateTodoStatusParams {
                 filepath: "write.org".to_string(),
-                target: crate::edit::TargetEntry::Line { line_number: 1, expected_title: None },
+                target: crate::edit::TargetEntry::Line {
+                    line_number: 1,
+                    expected_title: None,
+                },
                 new_status: "DONE".to_string(),
             }))
             .await
@@ -892,7 +889,10 @@ mod tests {
         let result = server
             .update_scheduling(Parameters(UpdateSchedulingParams {
                 filepath: "schedule.org".to_string(),
-                target: crate::edit::TargetEntry::Line { line_number: 1, expected_title: None },
+                target: crate::edit::TargetEntry::Line {
+                    line_number: 1,
+                    expected_title: None,
+                },
                 scheduling_type: "SCHEDULED".to_string(),
                 timestamp: "<2024-05-01 Wed 10:00>".to_string(),
             }))

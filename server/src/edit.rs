@@ -1,15 +1,22 @@
 use anyhow::Result;
-use std::path::Path;
-use tokio::fs;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
+use tokio::fs;
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum TargetEntry {
-    Id { id: String },
-    Path { path: Vec<String> },
-    Line { line_number: usize, expected_title: Option<String> },
+    Id {
+        id: String,
+    },
+    Path {
+        path: Vec<String>,
+    },
+    Line {
+        line_number: usize,
+        expected_title: Option<String>,
+    },
 }
 
 impl TargetEntry {
@@ -34,7 +41,10 @@ impl TargetEntry {
                     Err(anyhow::anyhow!("Entry with path {:?} not found", path))
                 }
             }
-            TargetEntry::Line { line_number, expected_title } => {
+            TargetEntry::Line {
+                line_number,
+                expected_title,
+            } => {
                 if let Some(expected) = expected_title {
                     let lines: Vec<&str> = content.split('\n').collect();
                     let target_idx = line_number.saturating_sub(1);
@@ -42,15 +52,19 @@ impl TargetEntry {
                         return Err(anyhow::anyhow!("Line {} out of bounds", line_number));
                     }
                     let line = lines[target_idx];
-                    
+
                     let org = org_parser::parse(&mut org_ctx, &format!("{}\n", line))
                         .map_err(|e| anyhow::anyhow!("Parse error: {:?}", e))?;
                     if let Some(sec) = org.sections.first() {
                         if sec.title.trim() != expected.trim() {
-                            return Err(anyhow::anyhow!("Headline title mismatch. Expected '{}', got '{}'", expected, sec.title.trim()));
+                            return Err(anyhow::anyhow!(
+                                "Headline title mismatch. Expected '{}', got '{}'",
+                                expected,
+                                sec.title.trim()
+                            ));
                         }
                     } else {
-                         return Err(anyhow::anyhow!("Line {} is not a headline", line_number));
+                        return Err(anyhow::anyhow!("Line {} is not a headline", line_number));
                     }
                 }
                 Ok(*line_number)
@@ -75,32 +89,36 @@ fn find_section_by_id(sections: &[org_parser::Section], id: &str) -> Option<usiz
     None
 }
 
-fn find_section_by_path(sections: &[org_parser::Section], path: &[String], depth: usize) -> Option<usize> {
+fn find_section_by_path(
+    sections: &[org_parser::Section],
+    path: &[String],
+    depth: usize,
+) -> Option<usize> {
     if path.is_empty() || depth >= path.len() {
         return None;
     }
-    
+
     // org_parser parses sections mostly as a flat list, but occasionally might nest them.
     // To support a hierarchy like "Parent" -> "Child", we find "Parent" and then look for "Child"
     // among subsequent sections that have a STRICTLY GREATER level, until we hit a section
     // with level <= Parent's level.
-    
+
     let target_title = &path[depth];
-    
+
     for (i, sec) in sections.iter().enumerate() {
         if sec.title.trim() == target_title.trim() {
             if depth == path.len() - 1 {
                 return Some(sec.pos.line);
             }
-            
+
             let parent_level = get_level(sec);
-            
+
             // Sub-headlines could be strictly inside `sec.sections` or coming after `sec` in `sections`.
             // First check explicitly nested ones:
             if let Some(line) = find_section_by_path(&sec.sections, path, depth + 1) {
                 return Some(line);
             }
-            
+
             // Then check siblings in the flat list that act as children (level > parent_level)
             let mut children_flat = Vec::new();
             for sibling in &sections[i + 1..] {
@@ -109,11 +127,10 @@ fn find_section_by_path(sections: &[org_parser::Section], path: &[String], depth
                 }
                 children_flat.push(sibling.clone());
             }
-            
+
             if let Some(line) = find_section_by_path(&children_flat, path, depth + 1) {
                 return Some(line);
             }
-            
         } else {
             // Search inside explicitly nested sections (if any)
             if let Some(line) = find_section_by_path(&sec.sections, path, depth) {
@@ -323,9 +340,16 @@ mod tests {
         let mut file = NamedTempFile::new().unwrap();
         write!(file, "{}", content).unwrap();
 
-        do_update_todo_status(file.path(), &TargetEntry::Line { line_number: line_num, expected_title: None }, new_status)
-            .await
-            .unwrap();
+        do_update_todo_status(
+            file.path(),
+            &TargetEntry::Line {
+                line_number: line_num,
+                expected_title: None,
+            },
+            new_status,
+        )
+        .await
+        .unwrap();
 
         fs::read_to_string(file.path()).await.unwrap()
     }
@@ -361,13 +385,12 @@ pub fn find_subtree_end(lines: &[&str], start_idx: usize) -> usize {
     let Some(level) = get_headline_level(lines[start_idx]) else {
         return start_idx + 1;
     };
-    
+
     for (i, line) in lines.iter().enumerate().skip(start_idx + 1) {
-        if let Some(l) = get_headline_level(line) {
-            if l <= level {
+        if let Some(l) = get_headline_level(line)
+            && l <= level {
                 return i;
             }
-        }
     }
     lines.len()
 }
@@ -392,14 +415,11 @@ pub async fn do_insert_content(
 
     let mut lines: Vec<&str> = content.split('\n').collect();
     if target_idx >= lines.len() {
-        return Err(anyhow::anyhow!(
-            "Line {} out of bounds",
-            target_line_number
-        ));
+        return Err(anyhow::anyhow!("Line {} out of bounds", target_line_number));
     }
 
     let insert_str = content_to_insert.to_string();
-    
+
     // Insert after the target_idx
     lines.insert(target_idx + 1, &insert_str);
 
@@ -440,7 +460,7 @@ pub async fn do_update_headline(
     let mut org_ctx = org_parser::Context::new();
     let old_headline_text = lines[target_idx];
     let parse_text = format!("{}\n", old_headline_text);
-    
+
     let mut new_headline = old_headline_text.to_string(); // fallback
     if let Ok(org) = org_parser::parse(&mut org_ctx, &parse_text) {
         if let Some(section) = org.sections.first() {
@@ -470,15 +490,15 @@ pub async fn do_update_headline(
     // Replace lines from target_idx to end_idx-1
     let mut new_lines = Vec::new();
     new_lines.extend_from_slice(&lines[..target_idx]);
-    
+
     let new_headline_owned = new_headline;
     let new_body_owned = new_body.to_string();
-    
+
     new_lines.push(&new_headline_owned);
     if !new_body_owned.is_empty() {
         new_lines.push(&new_body_owned);
     }
-    
+
     new_lines.extend_from_slice(&lines[end_idx..]);
 
     fs::write(resolved, new_lines.join("\n")).await?;
@@ -489,10 +509,7 @@ pub async fn do_update_headline(
     ))
 }
 
-pub async fn do_delete_headline(
-    resolved: &Path,
-    target: &TargetEntry,
-) -> Result<String> {
+pub async fn do_delete_headline(resolved: &Path, target: &TargetEntry) -> Result<String> {
     let content = fs::read_to_string(resolved).await?;
     let headline_line_number = target.resolve(&content)?;
     let target_idx = headline_line_number.saturating_sub(1);
@@ -538,9 +555,16 @@ mod additional_tests {
         let mut file = NamedTempFile::new().unwrap();
         write!(file, "{}", content).unwrap();
 
-        do_insert_content(file.path(), &TargetEntry::Line { line_number: 1, expected_title: None }, "body text")
-            .await
-            .unwrap();
+        do_insert_content(
+            file.path(),
+            &TargetEntry::Line {
+                line_number: 1,
+                expected_title: None,
+            },
+            "body text",
+        )
+        .await
+        .unwrap();
 
         let out = fs::read_to_string(file.path()).await.unwrap();
         assert_eq!(out, "* Headline 1\nbody text\n* Headline 2\n");
@@ -552,12 +576,23 @@ mod additional_tests {
         let mut file = NamedTempFile::new().unwrap();
         write!(file, "{}", content).unwrap();
 
-        do_update_headline(file.path(), &TargetEntry::Line { line_number: 1, expected_title: None }, "New Title", "new body text")
-            .await
-            .unwrap();
+        do_update_headline(
+            file.path(),
+            &TargetEntry::Line {
+                line_number: 1,
+                expected_title: None,
+            },
+            "New Title",
+            "new body text",
+        )
+        .await
+        .unwrap();
 
         let out = fs::read_to_string(file.path()).await.unwrap();
-        assert_eq!(out, "* TODO [#A] New Title :tag:\nnew body text\n** Subhead\n");
+        assert_eq!(
+            out,
+            "* TODO [#A] New Title :tag:\nnew body text\n** Subhead\n"
+        );
     }
 
     #[tokio::test]
@@ -566,9 +601,15 @@ mod additional_tests {
         let mut file = NamedTempFile::new().unwrap();
         write!(file, "{}", content).unwrap();
 
-        do_delete_headline(file.path(), &TargetEntry::Line { line_number: 1, expected_title: None })
-            .await
-            .unwrap();
+        do_delete_headline(
+            file.path(),
+            &TargetEntry::Line {
+                line_number: 1,
+                expected_title: None,
+            },
+        )
+        .await
+        .unwrap();
 
         let out = fs::read_to_string(file.path()).await.unwrap();
         assert_eq!(out, "* Head 2\n");
@@ -589,37 +630,65 @@ body
         let mut org_ctx = org_parser::Context::new();
         let _org = org_parser::parse(&mut org_ctx, content).unwrap();
 
-        let target_id = TargetEntry::Id { id: "12345".to_string() };
+        let target_id = TargetEntry::Id {
+            id: "12345".to_string(),
+        };
         assert_eq!(target_id.resolve(content).unwrap(), 2);
 
-        let target_path = TargetEntry::Path { path: vec!["Project Beta".to_string(), "Task 1".to_string()] };
+        let target_path = TargetEntry::Path {
+            path: vec!["Project Beta".to_string(), "Task 1".to_string()],
+        };
         assert_eq!(target_path.resolve(content).unwrap(), 9);
 
-        let target_line_ok = TargetEntry::Line { line_number: 8, expected_title: Some("Project Beta".to_string()) };
+        let target_line_ok = TargetEntry::Line {
+            line_number: 8,
+            expected_title: Some("Project Beta".to_string()),
+        };
         assert_eq!(target_line_ok.resolve(content).unwrap(), 8);
 
-        let target_line_err = TargetEntry::Line { line_number: 8, expected_title: Some("Wrong Title".to_string()) };
+        let target_line_err = TargetEntry::Line {
+            line_number: 8,
+            expected_title: Some("Wrong Title".to_string()),
+        };
         assert!(target_line_err.resolve(content).is_err());
     }
 
     #[test]
     fn test_target_entry_edge_cases() {
         let content = "* Root\n** Child 1\n*** Grandchild\n** Child 2\n* Root 2\n";
-        
+
         // Path resolution for deep nesting where sections are siblings under Root
-        let target_deep_path = TargetEntry::Path { path: vec!["Root".to_string(), "Child 1".to_string(), "Grandchild".to_string()] };
+        let target_deep_path = TargetEntry::Path {
+            path: vec![
+                "Root".to_string(),
+                "Child 1".to_string(),
+                "Grandchild".to_string(),
+            ],
+        };
         assert_eq!(target_deep_path.resolve(content).unwrap(), 3);
-        
-        let target_missing_path = TargetEntry::Path { path: vec!["Root".to_string(), "Child 2".to_string(), "Grandchild".to_string()] };
+
+        let target_missing_path = TargetEntry::Path {
+            path: vec![
+                "Root".to_string(),
+                "Child 2".to_string(),
+                "Grandchild".to_string(),
+            ],
+        };
         assert!(target_missing_path.resolve(content).is_err());
 
         // Out of bounds checking
-        let target_oob_line = TargetEntry::Line { line_number: 100, expected_title: Some("Non-existent".to_string()) };
+        let target_oob_line = TargetEntry::Line {
+            line_number: 100,
+            expected_title: Some("Non-existent".to_string()),
+        };
         let err = target_oob_line.resolve(content).unwrap_err();
         assert_eq!(err.to_string(), "Line 100 out of bounds");
-        
+
         // Not a headline checking
-        let not_headline_line = TargetEntry::Line { line_number: 1, expected_title: Some("Not a headline, this is text".to_string()) };
+        let not_headline_line = TargetEntry::Line {
+            line_number: 1,
+            expected_title: Some("Not a headline, this is text".to_string()),
+        };
         // At line 1 it is "* Root", which doesn't match the title
         let err2 = not_headline_line.resolve(content).unwrap_err();
         assert!(err2.to_string().contains("Headline title mismatch"));
