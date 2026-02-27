@@ -89,6 +89,9 @@ pub async fn run_server(
         .route("/api/edit/todo/{*filepath}", post(update_todo_status))
         .route("/api/edit/append/{*filepath}", post(append_task))
         .route("/api/edit/schedule/{*filepath}", post(update_scheduling))
+        .route("/api/edit/headline/insert/{*filepath}", post(insert_content_handler))
+        .route("/api/edit/headline/update/{*filepath}", post(update_headline_handler))
+        .route("/api/edit/headline/delete/{*filepath}", post(delete_headline_handler))
         .with_state(app_state);
 
     // Try to bind to the specified port, with fallback options
@@ -187,7 +190,7 @@ async fn get_org_file(
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateTodoStatusRequest {
-    pub headline_line_number: usize,
+    pub target: crate::edit::TargetEntry,
     pub new_status: String,
 }
 
@@ -200,9 +203,27 @@ pub struct AppendTaskRequest {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateSchedulingRequest {
-    pub headline_line_number: usize,
+    pub target: crate::edit::TargetEntry,
     pub scheduling_type: String,
     pub timestamp: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct InsertContentRequest {
+    pub target: crate::edit::TargetEntry,
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateHeadlineRequest {
+    pub target: crate::edit::TargetEntry,
+    pub new_title: String,
+    pub new_body: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DeleteHeadlineRequest {
+    pub target: crate::edit::TargetEntry,
 }
 
 #[derive(Debug, Serialize)]
@@ -222,7 +243,7 @@ async fn update_todo_status(
 
     match crate::edit::do_update_todo_status(
         &resolved,
-        payload.headline_line_number,
+        &payload.target,
         &payload.new_status,
     )
     .await
@@ -275,9 +296,87 @@ async fn update_scheduling(
 
     match crate::edit::do_update_scheduling(
         &resolved,
-        payload.headline_line_number,
+        &payload.target,
         &payload.scheduling_type,
         &payload.timestamp,
+    )
+    .await
+    {
+        Ok(msg) => Ok(AxumJson(WriteResponse {
+            success: true,
+            message: msg,
+        })),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
+    }
+}
+
+/// コンテンツ挿入ハンドラー
+async fn insert_content_handler(
+    State(state): State<AppState>,
+    Path(filepath): Path<String>,
+    AxumJson(payload): AxumJson<InsertContentRequest>,
+) -> ApiResult<AxumJson<WriteResponse>> {
+    debug!("POST /api/edit/headline/insert/{}", filepath);
+    let resolved = state.file_resolver.resolve_file(&filepath).await?;
+
+    match crate::edit::do_insert_content(
+        &resolved,
+        &payload.target,
+        &payload.content,
+    )
+    .await
+    {
+        Ok(msg) => Ok(AxumJson(WriteResponse {
+            success: true,
+            message: msg,
+        })),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
+    }
+}
+
+/// 見出し更新ハンドラー
+async fn update_headline_handler(
+    State(state): State<AppState>,
+    Path(filepath): Path<String>,
+    AxumJson(payload): AxumJson<UpdateHeadlineRequest>,
+) -> ApiResult<AxumJson<WriteResponse>> {
+    debug!("POST /api/edit/headline/update/{}", filepath);
+    let resolved = state.file_resolver.resolve_file(&filepath).await?;
+
+    match crate::edit::do_update_headline(
+        &resolved,
+        &payload.target,
+        &payload.new_title,
+        &payload.new_body,
+    )
+    .await
+    {
+        Ok(msg) => Ok(AxumJson(WriteResponse {
+            success: true,
+            message: msg,
+        })),
+        Err(e) => Err(ApiError::Internal {
+            message: e.to_string(),
+        }),
+    }
+}
+
+/// 見出し削除ハンドラー
+async fn delete_headline_handler(
+    State(state): State<AppState>,
+    Path(filepath): Path<String>,
+    AxumJson(payload): AxumJson<DeleteHeadlineRequest>,
+) -> ApiResult<AxumJson<WriteResponse>> {
+    debug!("POST /api/edit/headline/delete/{}", filepath);
+    let resolved = state.file_resolver.resolve_file(&filepath).await?;
+
+    match crate::edit::do_delete_headline(
+        &resolved,
+        &payload.target,
     )
     .await
     {
@@ -336,6 +435,9 @@ mod tests {
             .route("/api/edit/todo/{*filepath}", post(update_todo_status))
             .route("/api/edit/append/{*filepath}", post(append_task))
             .route("/api/edit/schedule/{*filepath}", post(update_scheduling))
+            .route("/api/edit/headline/insert/{*filepath}", post(insert_content_handler))
+            .route("/api/edit/headline/update/{*filepath}", post(update_headline_handler))
+            .route("/api/edit/headline/delete/{*filepath}", post(delete_headline_handler))
             .with_state(app_state)
     }
 
@@ -524,7 +626,7 @@ This is a subsection.
         let app = create_test_app(config).await;
 
         let payload = UpdateTodoStatusRequest {
-            headline_line_number: 1,
+            target: crate::edit::TargetEntry::Line { line_number: 1, expected_title: None },
             new_status: "DONE".to_string(),
         };
 
@@ -593,7 +695,7 @@ This is a subsection.
         let app = create_test_app(config).await;
 
         let payload = UpdateSchedulingRequest {
-            headline_line_number: 1,
+            target: crate::edit::TargetEntry::Line { line_number: 1, expected_title: None },
             scheduling_type: "SCHEDULED".to_string(),
             timestamp: "<2026-03-01 Sun>".to_string(),
         };

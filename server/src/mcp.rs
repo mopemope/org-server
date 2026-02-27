@@ -418,7 +418,7 @@ impl OrgMcpServer {
 
         match crate::edit::do_update_todo_status(
             &resolved,
-            params.headline_line_number,
+            &params.target,
             &params.new_status,
         )
         .await
@@ -479,7 +479,7 @@ impl OrgMcpServer {
 
         match crate::edit::do_update_scheduling(
             &resolved,
-            params.headline_line_number,
+            &params.target,
             &params.scheduling_type,
             &params.timestamp,
         )
@@ -489,6 +489,87 @@ impl OrgMcpServer {
                 success: true,
                 message: msg,
             })),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
+        }
+    }
+
+    #[tool(
+        name = "insert_content",
+        description = "Insert generic string content after a specific line in an Org file."
+    )]
+    async fn insert_content(
+        &self,
+        params: Parameters<InsertContentParams>,
+    ) -> Result<Json<WriteResponse>, McpError> {
+        let params = params.0;
+        let resolved = self
+            .file_resolver
+            .resolve_file(&params.filepath)
+            .await
+            .map_err(map_resolver_error)?;
+
+        match crate::edit::do_insert_content(
+            &resolved,
+            &params.target,
+            &params.content,
+        )
+        .await
+        {
+            Ok(msg) => Ok(Json(WriteResponse { success: true, message: msg })),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
+        }
+    }
+
+    #[tool(
+        name = "update_headline",
+        description = "Change the title and body content of a specific headline."
+    )]
+    async fn update_headline(
+        &self,
+        params: Parameters<UpdateHeadlineParams>,
+    ) -> Result<Json<WriteResponse>, McpError> {
+        let params = params.0;
+        let resolved = self
+            .file_resolver
+            .resolve_file(&params.filepath)
+            .await
+            .map_err(map_resolver_error)?;
+
+        match crate::edit::do_update_headline(
+            &resolved,
+            &params.target,
+            &params.new_title,
+            &params.new_body,
+        )
+        .await
+        {
+            Ok(msg) => Ok(Json(WriteResponse { success: true, message: msg })),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
+        }
+    }
+
+    #[tool(
+        name = "delete_headline",
+        description = "Delete a specific headline and its descendants."
+    )]
+    async fn delete_headline(
+        &self,
+        params: Parameters<DeleteHeadlineParams>,
+    ) -> Result<Json<WriteResponse>, McpError> {
+        let params = params.0;
+        let resolved = self
+            .file_resolver
+            .resolve_file(&params.filepath)
+            .await
+            .map_err(map_resolver_error)?;
+
+        match crate::edit::do_delete_headline(
+            &resolved,
+            &params.target,
+        )
+        .await
+        {
+            Ok(msg) => Ok(Json(WriteResponse { success: true, message: msg })),
             Err(e) => Err(McpError::internal_error(e.to_string(), None)),
         }
     }
@@ -614,7 +695,7 @@ pub struct SearchByTagResponse {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct UpdateTodoStatusParams {
     pub filepath: String,
-    pub headline_line_number: usize,
+    pub target: crate::edit::TargetEntry,
     pub new_status: String,
 }
 
@@ -631,9 +712,30 @@ pub struct AppendTaskParams {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct UpdateSchedulingParams {
     pub filepath: String,
-    pub headline_line_number: usize,
+    pub target: crate::edit::TargetEntry,
     pub scheduling_type: String, // "SCHEDULED" or "DEADLINE"
     pub timestamp: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct InsertContentParams {
+    pub filepath: String,
+    pub target: crate::edit::TargetEntry,
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct UpdateHeadlineParams {
+    pub filepath: String,
+    pub target: crate::edit::TargetEntry,
+    pub new_title: String,
+    pub new_body: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct DeleteHeadlineParams {
+    pub filepath: String,
+    pub target: crate::edit::TargetEntry,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -735,7 +837,7 @@ mod tests {
         let result = server
             .update_todo_status(Parameters(UpdateTodoStatusParams {
                 filepath: "write.org".to_string(),
-                headline_line_number: 1,
+                target: crate::edit::TargetEntry::Line { line_number: 1, expected_title: None },
                 new_status: "DONE".to_string(),
             }))
             .await
@@ -790,7 +892,7 @@ mod tests {
         let result = server
             .update_scheduling(Parameters(UpdateSchedulingParams {
                 filepath: "schedule.org".to_string(),
-                headline_line_number: 1,
+                target: crate::edit::TargetEntry::Line { line_number: 1, expected_title: None },
                 scheduling_type: "SCHEDULED".to_string(),
                 timestamp: "<2024-05-01 Wed 10:00>".to_string(),
             }))
