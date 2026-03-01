@@ -70,11 +70,13 @@ org-server server
 org-server server --config /path/to/config.toml --port 3000 --host 127.0.0.1
 ```
 
+If the default config file does not exist, `org-server` creates a template automatically.
+
 #### Server Options
 
 - `--config <FILE>`: Configuration file path
-- `--port <PORT>`: Server port (default: 3000)
-- `--host <HOST>`: Server host (default: 127.0.0.1)
+- `--port <PORT>`: Override `server_port` in config
+- `--host <HOST>`: Override `server_host` in config
 
 ### MCP (Model Context Protocol)
 
@@ -86,6 +88,7 @@ Available MCP tools:
 - **`get_org_file_content`**: Get the raw content of an Org file
 - **`list_todos`**: List TODO items, optionally filtered by keyword
 - **`get_agenda`**: Get upcoming SCHEDULED and DEADLINE items
+- **`search_by_tag`**: Find headlines by tag
 - **`insert_content`**: Insert new content into an Org file
 - **`update_headline`**: Update an existing headline's title and body
 - **`delete_headline`**: Delete a headline and its entire subtree
@@ -98,17 +101,18 @@ Available MCP tools:
 The server provides RESTful HTTP APIs for direct interaction.
 
 **Read API**:
-- `GET /api/org/{filepath}`: Retrieve the parsed JSON AST of an Org file
+- `GET /api/orgs/{filepath}`: Retrieve the parsed JSON AST of an Org file
 
 **Write API**:
-- `POST /api/edit/headline/insert`: Insert text after a specific headline
-- `POST /api/edit/headline/update`: Update a headline
-- `POST /api/edit/headline/delete`: Delete a headline and its subtree
-- `POST /api/edit/todo`: Update the TODO status of a task
-- `POST /api/edit/schedule`: Update SCHEDULED or DEADLINE timestamps
-- `POST /api/edit/append`: Append a new top-level task
+- `POST /api/edit/headline/insert/{filepath}`: Insert text after a specific headline
+- `POST /api/edit/headline/update/{filepath}`: Update a headline
+- `POST /api/edit/headline/delete/{filepath}`: Delete a headline and its subtree
+- `POST /api/edit/todo/{filepath}`: Update the TODO status of a task
+- `POST /api/edit/schedule/{filepath}`: Update SCHEDULED or DEADLINE timestamps
+- `POST /api/edit/append/{filepath}`: Append a new top-level task
 
 > **Note**: Both MCP write tools and HTTP Write APIs support **Hybrid Targeting**. You can safely target entries using their unique `:ID:`, their hierarchical heading path, or a combination of line number and expected title. This completely prevents accidental data corruption caused by editing the wrong line.
+> For nested paths, use URL-encoded relative paths under configured `org_path` roots (for example, `projects%2Fwork.org`).
 
 ## Supported Org-mode Elements
 

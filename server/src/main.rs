@@ -51,16 +51,15 @@ async fn main() -> Result<()> {
             parse_and_output_json(&file, output.as_ref(), json_config)?;
         }
         Commands::Server { config, port, host } => {
-            info!("Running in server mode on {}:{}", host, port);
-
             let config_path = if let Some(path) = config {
                 path
             } else {
                 utils::get_config_file("org-server.toml")?
             };
+            config::write_default_config(&config_path)?;
 
             debug!("load config path: {:?}", config_path);
-            let server_config = config::parse_config(&config_path.to_string_lossy())?;
+            let server_config = config::parse_config(&config_path)?;
 
             let file_resolver = Arc::new(file_resolver::FileResolver::new(&server_config));
 
@@ -86,19 +85,9 @@ async fn main() -> Result<()> {
             )
             .await?;
 
-            // Use the port from CLI args if provided, otherwise use config
-            let server_port = if port == 3000 {
-                server_config.server_port
-            } else {
-                port
-            };
-
-            // Use the host from CLI args if it's not the default, otherwise use config
-            let server_host = if host == "127.0.0.1" {
-                server_config.server_host.clone()
-            } else {
-                host
-            };
+            let server_port = port.unwrap_or(server_config.server_port);
+            let server_host = host.unwrap_or_else(|| server_config.server_host.clone());
+            info!("Running in server mode on {}:{}", server_host, server_port);
 
             web::run_server(&server_host, server_port, server_config, file_resolver).await?;
         }

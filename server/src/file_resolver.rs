@@ -64,28 +64,21 @@ impl FileResolver {
             });
         }
 
-        // 2. パストラバーサル攻撃防止
-        if filepath.contains("..") {
-            warn!("Path traversal attack detected: {}", filepath);
-            return Err(FileResolverError::PathTraversalDetected);
-        }
+        let normalized = PathBuf::from(filepath);
 
-        // 3. 絶対パス禁止
-        if filepath.starts_with('/') || filepath.starts_with('\\') {
+        // 2. 絶対パス禁止
+        if normalized.is_absolute() {
             warn!("Absolute path not allowed: {}", filepath);
             return Err(FileResolverError::AbsolutePathNotAllowed);
         }
 
-        // 4. .orgファイルのみ許可
-        if !filepath.ends_with(".org") {
+        // 3. .orgファイルのみ許可
+        if normalized.extension().and_then(|ext| ext.to_str()) != Some("org") {
             warn!("Invalid file extension: {}", filepath);
             return Err(FileResolverError::InvalidFileExtension);
         }
 
-        // 5. パス正規化
-        let normalized = PathBuf::from(filepath);
-
-        // 6. 正規化後の追加検証
+        // 4. 正規化後の追加検証
         if normalized
             .components()
             .any(|c| matches!(c, std::path::Component::ParentDir))
@@ -193,6 +186,11 @@ mod tests {
         assert!(
             resolver
                 .validate_and_normalize_filepath("deep/nested/path/test.org")
+                .is_ok()
+        );
+        assert!(
+            resolver
+                .validate_and_normalize_filepath("notes..2026.org")
                 .is_ok()
         );
     }

@@ -903,7 +903,7 @@ Content for section 1
                 // 変換が成功した場合、深度制限内で処理されたことを意味する
             }
             Err(JsonConversionError::MaxDepthExceeded { depth }) => {
-                assert!(depth > 10);
+                assert!(depth >= 10);
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
         }

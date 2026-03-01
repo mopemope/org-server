@@ -734,6 +734,77 @@ fn parse_section(ctx: &mut Context, pair: Pair<'_, Rule>) -> Section {
     section
 }
 
+fn headline_level(section: &Section) -> usize {
+    let level = section
+        .headline_symbol
+        .chars()
+        .take_while(|c| *c == '*')
+        .count();
+    level.max(1)
+}
+
+fn flatten_sections(sections: Vec<Section>, out: &mut Vec<Section>) {
+    for mut section in sections {
+        let nested = std::mem::take(&mut section.sections);
+        out.push(section);
+        flatten_sections(nested, out);
+    }
+}
+
+fn get_section_mut_by_path<'a>(
+    sections: &'a mut [Section],
+    path: &[usize],
+) -> Option<&'a mut Section> {
+    let (&first, rest) = path.split_first()?;
+    let mut current = sections.get_mut(first)?;
+    for &idx in rest {
+        current = current.sections.get_mut(idx)?;
+    }
+    Some(current)
+}
+
+fn rebuild_section_hierarchy(sections: Vec<Section>) -> Vec<Section> {
+    let mut flat_sections = Vec::new();
+    flatten_sections(sections, &mut flat_sections);
+    if flat_sections.is_empty() {
+        return flat_sections;
+    }
+
+    let mut roots = Vec::new();
+    // Path to the most recently inserted section.
+    // Example: [0, 2] -> roots[0].sections[2]
+    let mut path_stack: Vec<usize> = Vec::new();
+
+    for mut section in flat_sections {
+        section.sections.clear();
+
+        let level = headline_level(&section);
+        // Org allows jumping levels; clamp so we always attach to the nearest parent.
+        let target_depth = level.min(path_stack.len() + 1);
+        while path_stack.len() >= target_depth {
+            path_stack.pop();
+        }
+
+        if path_stack.is_empty() {
+            roots.push(section);
+            path_stack.push(roots.len() - 1);
+            continue;
+        }
+
+        if let Some(parent) = get_section_mut_by_path(&mut roots, &path_stack) {
+            parent.sections.push(section);
+            path_stack.push(parent.sections.len() - 1);
+        } else {
+            // Fallback to root if internal path state becomes invalid.
+            roots.push(section);
+            path_stack.clear();
+            path_stack.push(roots.len() - 1);
+        }
+    }
+
+    roots
+}
+
 /// Parse org-mode content into an Org structure
 ///
 /// # Errors
@@ -781,6 +852,8 @@ pub fn parse(ctx: &mut Context, content: &str) -> Result<Org> {
             }
         }
     }
+
+    org.sections = rebuild_section_hierarchy(org.sections);
 
     Ok(org)
 }
@@ -978,7 +1051,7 @@ mod tests {
         let pairs =
             OrgParser::parse(Rule::drawer_start, content).unwrap_or_else(|e| panic!("{}", e));
         debug!("{:?}", pairs.len());
-        assert!(pairs.len() > 0);
+        assert!(!pairs.is_empty());
         for pair in pairs {
             match pair.as_rule() {
                 Rule::drawer_start => {
@@ -1053,7 +1126,7 @@ mod tests {
         let pairs = OrgParser::parse(Rule::drawer, content).unwrap_or_else(|e| panic!("{}", e));
         for pair in pairs {
             let pairs = pair.into_inner();
-            assert!(pairs.len() > 0);
+            assert!(!pairs.is_empty());
             for pair in pairs {
                 // debug!("** {:?}", pair);
                 match pair.as_rule() {
@@ -1412,7 +1485,9 @@ Content2
                         }
                     },
                     _ => {
-                        panic!("Unexpected org item at index {}: {:?}", i, pair.as_rule());
+                        if pair.as_rule() != Rule::EOI {
+                            panic!("Unexpected org item at index {}: {:?}", i, pair.as_rule());
+                        }
                     }
                 }
             }
@@ -1518,6 +1593,64 @@ CONTENT2
 
         let result = serde_json::to_string(&org)?;
         debug!("{:?}", result);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_sections_after_blank_line() {
+        init();
+        let content = "* A\nline1\n\nline2\n* B\nline3\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
+
+        assert_eq!(2, org.sections.len());
+        assert_eq!("A", org.sections[0].title.trim());
+        assert_eq!("B", org.sections[1].title.trim());
+    }
+
+    #[test]
+    fn test_rebuild_hierarchy_from_headline_level() {
+        init();
+        let content = "* Root\n** Child 1\n*** Grandchild\n** Child 2\n* Root 2\n";
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, content).unwrap_or_else(|e| panic!("{}", e));
+
+        assert_eq!(2, org.sections.len());
+        assert_eq!("Root", org.sections[0].title.trim());
+        assert_eq!("Root 2", org.sections[1].title.trim());
+
+        let root = &org.sections[0];
+        assert_eq!(2, root.sections.len());
+        assert_eq!("Child 1", root.sections[0].title.trim());
+        assert_eq!("Child 2", root.sections[1].title.trim());
+        assert_eq!(1, root.sections[0].sections.len());
+        assert_eq!("Grandchild", root.sections[0].sections[0].title.trim());
+    }
+
+    fn count_sections_recursive(sections: &[Section]) -> usize {
+        sections
+            .iter()
+            .map(|section| 1 + count_sections_recursive(&section.sections))
+            .sum()
+    }
+
+    #[test]
+    fn test_parse_complex_structure_section_counts() -> Result<()> {
+        init();
+        let mut d = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("tests/resources/complex_structure.org");
+
+        let content = std::fs::read_to_string(&d)?;
+        let mut ctx = Context::new();
+        let org = parse(&mut ctx, &content)?;
+
+        assert_eq!(5, org.sections.len());
+        assert_eq!(16, count_sections_recursive(&org.sections));
+        assert_eq!("プロジェクト管理", org.sections[0].title.trim());
+        assert_eq!("個人タスク", org.sections[1].title.trim());
+        assert_eq!(2, org.sections[0].sections.len());
+        assert_eq!(2, org.sections[1].sections.len());
 
         Ok(())
     }

@@ -22,6 +22,8 @@ globmatch = "0.3"
 regex = { workspace = true }
 toml = { version = "0.8", features = ["parse"], default-features = false }
 xdg = "2"
+shellexpand.workspace = true
+dirs.workspace = true
 walkdir = "2"
 futures = { version = "0.3", default-features = false }
 notify-rust = { version = "4", features = ["serde", "zbus"], default-features = false }

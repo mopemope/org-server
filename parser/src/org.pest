@@ -126,7 +126,7 @@ section_text_block = ${
 }
 
 section_content = _{
-    (section_text_block ~ newline)
+    (section_text_block ~ (newline | &EOI))
 }
 
 // NOTE: src_block MUST come before keyword to prevent #+BEGIN_SRC from
@@ -143,7 +143,15 @@ section_meta = _{
   | table ~ newline*
 }
 section      =  {
-    headline ~ newline+ ~ (section_meta | section_content)*
+    headline ~ (newline+ ~ (section_meta | section_content | newline+)*)?
 }
 
-org = { properties* ~ newline* ~ drawer* ~ newline* ~ (keyword ~ newline)* ~ newline* ~ (section ~ newline*)* }
+org = {
+    (sp | newline)* ~
+    properties* ~ newline* ~
+    drawer* ~ newline* ~
+    (keyword ~ newline)* ~ newline* ~
+    (section ~ newline*)* ~
+    (sp | newline)* ~
+    EOI
+}

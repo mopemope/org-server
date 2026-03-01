@@ -55,9 +55,11 @@ pub fn parse_and_output_json<P: AsRef<Path>, Q: AsRef<Path>>(
     let org = parse(&mut ctx, &content)
         .with_context(|| format!("Failed to parse Org file: {}", file_path.display()))?;
 
+    let total_sections = count_sections_recursive(&org.sections);
     info!(
-        "Successfully parsed Org file. Sections: {}",
-        org.sections.len()
+        "Successfully parsed Org file. Top-level sections: {}, total sections: {}",
+        org.sections.len(),
+        total_sections
     );
 
     // JSON変換設定を作成
@@ -94,6 +96,13 @@ pub fn parse_and_output_json<P: AsRef<Path>, Q: AsRef<Path>>(
     }
 
     Ok(())
+}
+
+fn count_sections_recursive(sections: &[Section]) -> usize {
+    sections
+        .iter()
+        .map(|section| 1 + count_sections_recursive(&section.sections))
+        .sum()
 }
 
 /// ファイルにJSON出力を書き込む
@@ -346,7 +355,7 @@ Content for section 2
 
         assert_eq!(stats.title, Some("Test Document".to_string()));
         assert_eq!(stats.total_sections, 3); // Section 1, Subsection 1.1, Section 2
-        assert_eq!(stats.max_depth, 1); // ** is depth 1 (0-indexed)
+        assert_eq!(stats.max_depth, 2); // depth is 1-indexed from top-level section
         assert!(stats.total_keywords >= 1); // At least TITLE
         assert!(stats.total_properties >= 1); // At least one property
         assert!(stats.has_scheduling); // SCHEDULED keyword present

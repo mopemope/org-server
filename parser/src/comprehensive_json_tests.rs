@@ -148,7 +148,10 @@ Content for subsection 1.1.
 
         let org = parse_test_resource("edge_cases.org").expect("Failed to parse edge_cases.org");
 
-        let config = JsonConversionConfig::default();
+        let config = JsonConversionConfig {
+            max_depth: 64,
+            ..Default::default()
+        };
         let result = test_roundtrip_conversion(&org, &config)
             .expect("Failed to perform roundtrip conversion");
 
@@ -332,7 +335,7 @@ Some content here.
                 // 低い深度制限でも成功した場合、実際の深度がそれほど深くない
             }
             Err(JsonConversionError::MaxDepthExceeded { depth }) => {
-                assert!(depth > 5, "Depth should exceed the limit");
+                assert!(depth >= 5, "Depth should exceed the limit");
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
         }

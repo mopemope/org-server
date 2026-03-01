@@ -36,11 +36,11 @@ pub enum Commands {
         #[arg(short, long)]
         config: Option<PathBuf>,
         /// Port to bind the server to
-        #[arg(short, long, default_value = "3000")]
-        port: u16,
+        #[arg(short, long)]
+        port: Option<u16>,
         /// Host to bind the server to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
+        #[arg(long)]
+        host: Option<String>,
     },
 }
 
@@ -48,8 +48,8 @@ impl Cli {
     pub fn get_command(&self) -> Commands {
         self.command.clone().unwrap_or(Commands::Server {
             config: None,
-            port: 3000,
-            host: "127.0.0.1".to_string(),
+            port: None,
+            host: None,
         })
     }
 }
@@ -64,8 +64,8 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
         match cli.get_command() {
             Commands::Server { port, host, .. } => {
-                assert_eq!(port, 3000);
-                assert_eq!(host, "127.0.0.1");
+                assert_eq!(port, None);
+                assert_eq!(host, None);
             }
             _ => panic!("Expected Server command as default"),
         }
@@ -90,7 +90,27 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
         match cli.command.unwrap() {
             Commands::Server { port, .. } => {
-                assert_eq!(port, 8080);
+                assert_eq!(port, Some(8080));
+            }
+            _ => panic!("Expected Server command"),
+        }
+    }
+
+    #[test]
+    fn test_server_subcommand_with_host_and_port() {
+        let args = vec![
+            "org-server",
+            "server",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "3000",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+        match cli.command.unwrap() {
+            Commands::Server { host, port, .. } => {
+                assert_eq!(host, Some("0.0.0.0".to_string()));
+                assert_eq!(port, Some(3000));
             }
             _ => panic!("Expected Server command"),
         }

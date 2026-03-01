@@ -144,7 +144,12 @@ pub async fn run_server(
         }
     }
 
-    unreachable!()
+    Err(anyhow::anyhow!(
+        "failed to bind server after {} attempts starting at {}:{}",
+        max_attempts,
+        host,
+        port
+    ))
 }
 
 /// ルートハンドラー
