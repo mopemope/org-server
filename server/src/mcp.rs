@@ -592,20 +592,13 @@ impl OrgMcpServer {
 #[tool_handler]
 impl rmcp::ServerHandler for OrgMcpServer {
     fn get_info(&self) -> ServerInfo {
-        let mut info = ServerInfo {
-            server_info: Implementation {
-                name: "org-server-mcp".into(),
-                title: Some("Org Server MCP".into()),
-                description: Some("Org Server MCP".into()),
-                version: env!("CARGO_PKG_VERSION").into(),
-                icons: None,
-                website_url: None,
-            },
-            ..Default::default()
-        };
-        info.capabilities = ServerCapabilities::builder().enable_tools().build();
-        info.instructions = Some("Search and inspect Org-mode files managed by org-server.".into());
-        info
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(
+                Implementation::new("org-server-mcp", env!("CARGO_PKG_VERSION"))
+                    .with_title("Org Server MCP")
+                    .with_description("Org Server MCP"),
+            )
+            .with_instructions("Search and inspect Org-mode files managed by org-server.")
     }
 }
 
